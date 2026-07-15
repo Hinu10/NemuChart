@@ -15,7 +15,7 @@ struct NemuChartApp: App {
 
     var body: some Scene {
         WindowGroup {
-            HomeView()
+            AppRootView(dependencies: dependencies)
         }
         .modelContainer(dependencies.modelContainer)
     }

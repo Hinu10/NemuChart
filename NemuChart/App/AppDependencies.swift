@@ -7,6 +7,7 @@ final class AppDependencies {
     let userSettingsRepository: any UserSettingsRepository
     let sleepGoalRepository: any SleepGoalRepository
     let dateTimeService: any DateTimeServiceProtocol
+    let scoringService: any ScoringServiceProtocol
 
     init(modelContainer: ModelContainer) {
         self.modelContainer = modelContainer
@@ -15,10 +16,10 @@ final class AppDependencies {
         userSettingsRepository = SwiftDataUserSettingsRepository(context: context)
         sleepGoalRepository = SwiftDataSleepGoalRepository(context: context)
         dateTimeService = DateTimeService()
+        scoringService = DailyScoreCalculator()
     }
 
     static func live() throws -> AppDependencies {
         AppDependencies(modelContainer: try ModelContainerFactory.make())
     }
 }
-
