@@ -11,7 +11,12 @@ struct AppRootView: View {
             if !didLoad {
                 ProgressView("設定を読み込んでいます")
             } else if let settings, settings.hasCompletedOnboarding {
-                HomeView(dependencies: dependencies, settings: settings)
+                HomeView(
+                    dependencies: dependencies,
+                    settings: settings,
+                    onSettingsChanged: { self.settings = $0 },
+                    onResetAllData: { self.settings = nil }
+                )
             } else {
                 OnboardingView(repository: dependencies.userSettingsRepository) { saved in
                     settings = saved

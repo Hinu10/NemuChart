@@ -6,10 +6,14 @@ struct RecordHistoryView: View {
     let settings: UserSettings
     var feedbackService: SheepFeedbackService = SheepFeedbackService()
     var goalRepository: (any SleepGoalRepository)?
+    var preferences: AppPreferencesStore?
+    var notificationService: (any LocalNotificationServiceProtocol)?
+    var onChanged: () -> Void = {}
     @Environment(\.dismiss) private var dismiss
     @State private var records: [SleepRecord] = []
     @State private var selectedRecord: SleepRecord?
     @State private var errorMessage: String?
+    @State private var pendingDeletion: SleepRecord?
 
     var body: some View {
         NavigationStack {
@@ -28,6 +32,9 @@ struct RecordHistoryView: View {
                             }
                         }
                         .buttonStyle(.plain)
+                        .swipeActions {
+                            Button("削除", role: .destructive) { pendingDeletion = record }
+                        }
                     }
                 }
             }
@@ -42,10 +49,18 @@ struct RecordHistoryView: View {
                 settings: settings,
                 feedbackService: feedbackService,
                 goalRepository: goalRepository,
+                preferences: preferences,
+                notificationService: notificationService,
                 initialRecord: record,
-                onSaved: load
+                onSaved: { load(); onChanged() }
             )
         }
+        .confirmationDialog("この睡眠記録を削除しますか？", isPresented: Binding(
+            get: { pendingDeletion != nil }, set: { if !$0 { pendingDeletion = nil } }
+        ), titleVisibility: .visible) {
+            Button("記録を削除", role: .destructive) { deletePendingRecord() }
+            Button("キャンセル", role: .cancel) { pendingDeletion = nil }
+        } message: { Text("関連するスコアと週間進捗も再計算されます。") }
         .alert("読み込めませんでした", isPresented: Binding(
             get: { errorMessage != nil },
             set: { if !$0 { errorMessage = nil } }
@@ -55,6 +70,16 @@ struct RecordHistoryView: View {
     private func load() {
         do { records = try repository.records() }
         catch { errorMessage = error.localizedDescription }
+    }
+
+    private func deletePendingRecord() {
+        guard let pendingDeletion else { return }
+        do {
+            try repository.delete(id: pendingDeletion.id)
+            self.pendingDeletion = nil
+            load()
+            onChanged()
+        } catch { errorMessage = error.localizedDescription }
     }
 
     private func durationText(_ interval: TimeInterval) -> String {

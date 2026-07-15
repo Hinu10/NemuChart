@@ -13,6 +13,11 @@ final class AppDependencies {
     let vitalityService: SheepVitalityService
     let growthService: SheepGrowthService
     let landscapeService: LandscapeStateService
+    let goalPlanningService: GoalPlanningService
+    let weeklyGoalProgressService: WeeklyGoalProgressService
+    let notificationService: any LocalNotificationServiceProtocol
+    let preferences: AppPreferencesStore
+    let safetyGuidanceService: SafetyGuidanceService
 
     init(modelContainer: ModelContainer) {
         self.modelContainer = modelContainer
@@ -27,6 +32,11 @@ final class AppDependencies {
         vitalityService = SheepVitalityService()
         growthService = SheepGrowthService()
         landscapeService = LandscapeStateService()
+        goalPlanningService = GoalPlanningService()
+        weeklyGoalProgressService = WeeklyGoalProgressService()
+        notificationService = LocalNotificationService()
+        preferences = AppPreferencesStore()
+        safetyGuidanceService = SafetyGuidanceService()
     }
 
     static func live() throws -> AppDependencies {

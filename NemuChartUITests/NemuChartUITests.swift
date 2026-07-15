@@ -1,12 +1,27 @@
 import XCTest
 
 final class NemuChartUITests: XCTestCase {
-    func testLaunchShowsAppName() {
+    func testPrimaryFlowHasAccessibleLabels() {
         let app = XCUIApplication()
         app.launch()
 
-        XCTAssertTrue(app.navigationBars["NemuChart"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["睡眠リズムを、毎朝少しずつ記録します。"].exists)
+        let onboarding = app.navigationBars["はじめまして"]
+        let home = app.navigationBars["NemuChart"]
+        XCTAssertTrue(onboarding.waitForExistence(timeout: 5) || home.waitForExistence(timeout: 5))
+
+        if onboarding.exists {
+            let next = app.buttons["onboardingPrimaryButton"]
+            XCTAssertTrue(next.exists)
+            next.tap()
+            XCTAssertTrue(app.staticTexts["必須設定（3項目）"].waitForExistence(timeout: 2))
+            next.tap()
+            XCTAssertTrue(home.waitForExistence(timeout: 3))
+        }
+
+        let record = app.buttons["時間帯にかかわらず記録する"]
+        XCTAssertTrue(record.exists)
+        record.tap()
+        XCTAssertTrue(app.navigationBars["睡眠を記録"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["reviewSleepRecord"].exists)
     }
 }
-

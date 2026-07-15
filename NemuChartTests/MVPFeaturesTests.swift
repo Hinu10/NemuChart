@@ -55,6 +55,20 @@ final class MVPFeaturesTests: XCTestCase {
         XCTAssertEqual(record.sleepStart, TestFixtures.date(2026, 7, 13, 23, 25))
     }
 
+    func testDraftNormalizesSmartphoneClockToPreviousNight() throws {
+        var draft = SleepRecordDraft(now: TestFixtures.date(2026, 7, 14, 7, 0))
+        draft.wakeTime = TestFixtures.date(2026, 7, 14, 7, 0)
+        draft.bedClock = TestFixtures.date(2026, 7, 14, 23, 0)
+        draft.sleepClock = TestFixtures.date(2026, 7, 14, 23, 30)
+        draft.smartphoneEndTime = TestFixtures.date(2026, 7, 14, 22, 30)
+
+        let record = try draft.makeRecord(
+            now: TestFixtures.date(2026, 7, 14, 8, 0),
+            timeZone: TestFixtures.tokyo
+        )
+        XCTAssertEqual(record.factors.smartphoneEndTime, TestFixtures.date(2026, 7, 13, 22, 30))
+    }
+
     func testPerfectDailyScoreIs100() throws {
         let factors = try SleepFactors(awakeningCount: 0)
         let day = try SleepDay(year: 2026, month: 7, day: 14, timeZoneIdentifier: "Asia/Tokyo")

@@ -123,4 +123,43 @@ final class SwiftDataRepositoryTests: XCTestCase {
         XCTAssertEqual(try settingsRepository.load(), settings)
         XCTAssertEqual(try goalRepository.goal(id: goal.id), goal)
     }
+
+    func testDeleteAllRemovesRecordsGoalsSettingsAndPreferences() throws {
+        let settingsRepository = SwiftDataUserSettingsRepository(context: container.mainContext)
+        let goalRepository = SwiftDataSleepGoalRepository(context: container.mainContext)
+        let settings = try UserSettings(
+            hasCompletedOnboarding: true,
+            desiredSleepDuration: 8 * 3600,
+            standardWakeTime: LocalTime(hour: 7, minute: 0)!
+        )
+        let goal = try SleepGoal(
+            targetBedTime: LocalTime(hour: 22, minute: 30)!,
+            targetSleepTime: LocalTime(hour: 23, minute: 0)!,
+            targetWakeTime: LocalTime(hour: 7, minute: 0)!,
+            timeZoneIdentifier: "Asia/Tokyo"
+        )
+        _ = try repository.save(TestFixtures.sleepRecord())
+        try settingsRepository.save(settings)
+        try goalRepository.save(goal)
+
+        let suiteName = "NemuChartTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let preferences = AppPreferencesStore(defaults: defaults)
+        var preferenceData = preferences.load()
+        preferenceData.actionGoal = .putPhoneAway
+        try preferences.save(preferenceData)
+
+        try DataDeletionService(
+            sleepRecordRepository: repository,
+            userSettingsRepository: settingsRepository,
+            sleepGoalRepository: goalRepository,
+            preferences: preferences
+        ).deleteAll()
+
+        XCTAssertTrue(try repository.records().isEmpty)
+        XCTAssertTrue(try goalRepository.goals().isEmpty)
+        XCTAssertNil(try settingsRepository.load())
+        XCTAssertEqual(preferences.load(), AppPreferenceData())
+    }
 }

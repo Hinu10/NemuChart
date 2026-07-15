@@ -3,20 +3,31 @@ import SwiftUI
 struct HomeView: View {
     let dependencies: AppDependencies
     let settings: UserSettings
+    var onSettingsChanged: (UserSettings) -> Void = { _ in }
+    var onResetAllData: () -> Void = {}
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var now = Date()
     @State private var showingRecord = false
     @State private var showingHistory = false
     @State private var showingWeekly = false
+    @State private var showingWeeklyGoal = false
+    @State private var showingSettings = false
     @State private var records: [SleepRecord] = []
     @State private var scores: [DailySleepScore] = []
     @State private var weeklyMetrics: WeeklyMetrics?
+    @State private var preferenceData = AppPreferenceData()
+    @State private var safetyGuidance: SafetyGuidance?
     @State private var loadError: String?
 
     private var period: HomeTimeOfDay { TimeOfDayPolicy().period(at: now) }
     private var vitality: Vitality { dependencies.vitalityService.vitality(scores: scores) }
-    private var growth: SheepGrowthSummary { dependencies.growthService.summary(recordIDs: records.map(\.id)) }
+    private var growth: SheepGrowthSummary {
+        dependencies.growthService.summary(
+            recordIDs: records.map(\.id),
+            completedWeeklyGoalIDs: Array(preferenceData.rewardedWeeklyGoalIDs)
+        )
+    }
     private var landscape: LandscapeState { dependencies.landscapeService.state(timeOfDay: period, vitality: vitality) }
 
     var body: some View {
@@ -26,6 +37,7 @@ struct HomeView: View {
                     Text(period.title).font(.largeTitle.bold())
                     Text(period.message).font(.title3).foregroundStyle(.secondary)
                     landscapeCard
+                    if let safetyGuidance { safetyCard(safetyGuidance) }
                     if period == .morning {
                         Button("昨夜の睡眠を記録する") { showingRecord = true }
                             .buttonStyle(.borderedProminent)
@@ -41,10 +53,19 @@ struct HomeView: View {
                     }
                     Button("時間帯にかかわらず記録する") { showingRecord = true }
                         .font(.footnote)
+                        .frame(minHeight: 44)
+                        .accessibilityHint("朝以外でも睡眠入力画面を開きます")
                     Button {
                         showingWeekly = true
                     } label: {
                         Label("7日間の分析を見る", systemImage: "chart.bar.xaxis")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+                    Button {
+                        showingWeeklyGoal = true
+                    } label: {
+                        Label("週間目標を確認", systemImage: "checklist")
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.bordered)
@@ -54,7 +75,10 @@ struct HomeView: View {
             }
             .navigationTitle("NemuChart")
             .toolbar {
-                Button("過去の記録", systemImage: "clock.arrow.circlepath") { showingHistory = true }
+                ToolbarItemGroup(placement: .topBarTrailing) {
+                    Button("過去の記録", systemImage: "clock.arrow.circlepath") { showingHistory = true }
+                    Button("設定", systemImage: "gearshape") { showingSettings = true }
+                }
             }
         }
         .sheet(isPresented: $showingRecord) {
@@ -64,6 +88,8 @@ struct HomeView: View {
                 settings: settings,
                 feedbackService: dependencies.feedbackService,
                 goalRepository: dependencies.sleepGoalRepository,
+                preferences: dependencies.preferences,
+                notificationService: dependencies.notificationService,
                 onSaved: loadDashboard
             )
         }
@@ -73,7 +99,10 @@ struct HomeView: View {
                 scoringService: dependencies.scoringService,
                 settings: settings,
                 feedbackService: dependencies.feedbackService,
-                goalRepository: dependencies.sleepGoalRepository
+                goalRepository: dependencies.sleepGoalRepository,
+                preferences: dependencies.preferences,
+                notificationService: dependencies.notificationService,
+                onChanged: loadDashboard
             )
         }
         .sheet(isPresented: $showingWeekly) {
@@ -82,6 +111,23 @@ struct HomeView: View {
                 scoringService: dependencies.scoringService,
                 analysisService: dependencies.weeklyAnalysisService,
                 settings: settings
+            )
+        }
+        .sheet(isPresented: $showingWeeklyGoal, onDismiss: loadDashboard) {
+            WeeklyGoalView(
+                repository: dependencies.sleepRecordRepository,
+                sleepGoalRepository: dependencies.sleepGoalRepository,
+                preferences: dependencies.preferences,
+                progressService: dependencies.weeklyGoalProgressService,
+                settings: settings
+            )
+        }
+        .sheet(isPresented: $showingSettings) {
+            SettingsView(
+                dependencies: dependencies,
+                settings: settings,
+                onSaved: onSettingsChanged,
+                onDeleteAll: onResetAllData
             )
         }
         .task { loadDashboard() }
@@ -106,16 +152,9 @@ struct HomeView: View {
                 .scaleEffect(reduceMotion ? 1 : (vitality == .radiant ? 1.04 : 1))
                 .animation(reduceMotion ? nil : .easeInOut(duration: 1.2), value: vitality)
                 .accessibilityLabel("羊は\(vitality.displayName)状態です")
-            HStack {
-                VStack(alignment: .leading) {
-                    Text("元気度").font(.caption).foregroundStyle(.secondary)
-                    Text(vitality.displayName).bold()
-                }
-                Spacer()
-                VStack(alignment: .trailing) {
-                    Text("成長").font(.caption).foregroundStyle(.secondary)
-                    Text("\(growth.stage.displayName)・\(growth.points.value) pt").bold()
-                }
+            ViewThatFits(in: .horizontal) {
+                HStack { sheepStateSummary; Spacer(); growthSummary }
+                VStack(alignment: .leading, spacing: 8) { sheepStateSummary; growthSummary }
             }
             ProgressView(value: Double(weeklyMetrics?.recordedDayCount ?? 0), total: 7) {
                 Text("今週の記録 \(weeklyMetrics?.recordedDayCount ?? 0) / 7日")
@@ -129,6 +168,36 @@ struct HomeView: View {
         .foregroundStyle(.primary)
     }
 
+    private var sheepStateSummary: some View {
+        VStack(alignment: .leading) {
+            Text("元気度").font(.caption).foregroundStyle(.secondary)
+            Text(vitality.displayName).bold()
+        }
+    }
+
+    private var growthSummary: some View {
+        VStack(alignment: .leading) {
+            Text("成長").font(.caption).foregroundStyle(.secondary)
+            Text("\(growth.stage.displayName)・\(growth.points.value) pt").bold()
+        }
+    }
+
+    private func safetyCard(_ guidance: SafetyGuidance) -> some View {
+        GroupBox(guidance.title) {
+            VStack(alignment: .leading, spacing: 12) {
+                Text(guidance.message)
+                Button("この案内を閉じる") {
+                    do {
+                        preferenceData.safetyGuidanceDismissedAt = Date()
+                        try dependencies.preferences.save(preferenceData)
+                        safetyGuidance = nil
+                    } catch { loadError = error.localizedDescription }
+                }
+            }
+        }
+        .accessibilityElement(children: .contain)
+    }
+
     private func loadDashboard() {
         do {
             records = try dependencies.sleepRecordRepository.records()
@@ -137,7 +206,40 @@ struct HomeView: View {
             weeklyMetrics = try dependencies.weeklyAnalysisService.metrics(
                 records: records, endDay: endDay, settings: settings, scoringService: dependencies.scoringService
             )
+            preferenceData = dependencies.preferences.load()
+            try refreshWeeklyGoalIfNeeded()
+            safetyGuidance = dependencies.safetyGuidanceService.guidance(
+                records: records, dismissedAt: preferenceData.safetyGuidanceDismissedAt
+            )
         } catch { loadError = error.localizedDescription }
+    }
+
+    private func refreshWeeklyGoalIfNeeded() throws {
+        guard let existing = preferenceData.weeklyGoal else { return }
+        let start = try dependencies.weeklyGoalProgressService.weekStart(
+            containing: now, settings: settings
+        )
+        let latestGoal = try dependencies.sleepGoalRepository.goals().first
+        let progress = try dependencies.weeklyGoalProgressService.progress(
+            kind: existing.kind,
+            targetCount: existing.targetCount,
+            weekStart: start,
+            records: records,
+            settings: settings,
+            latestGoal: latestGoal
+        )
+        let updated = try WeeklyGoal(
+            id: existing.id,
+            kind: existing.kind,
+            weekStart: start,
+            targetCount: existing.targetCount,
+            completedCount: progress.completedCount
+        )
+        preferenceData.weeklyGoal = updated
+        if updated.completedCount >= updated.targetCount {
+            preferenceData.rewardedWeeklyGoalIDs.insert(updated.id)
+        }
+        try dependencies.preferences.save(preferenceData)
     }
 }
 

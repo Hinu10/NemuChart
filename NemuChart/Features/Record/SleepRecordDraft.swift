@@ -23,6 +23,8 @@ struct SleepRecordDraft {
     var smartphoneEndTime: Date?
     var stress: Rating?
     var comfort: Rating?
+    var reportedSnoring: Bool?
+    var reportedBreathingPause: Bool?
     var id = UUID()
     var createdAt = Date()
 
@@ -48,6 +50,8 @@ struct SleepRecordDraft {
         smartphoneEndTime = record.factors.smartphoneEndTime
         stress = record.factors.stress
         comfort = record.factors.comfort
+        reportedSnoring = record.factors.reportedSnoring
+        reportedBreathingPause = record.factors.reportedBreathingPause
         id = record.id
         createdAt = record.createdAt
     }
@@ -84,6 +88,12 @@ struct SleepRecordDraft {
             sleepStart = bed.addingTimeInterval(TimeInterval(latencyMinutes * 60))
         }
 
+        var normalizedSmartphoneEndTime: Date?
+        if let smartphoneEndTime {
+            var candidate = try Self.date(matchingClock: smartphoneEndTime, on: day, calendar: calendar)
+            if candidate >= wake { candidate = calendar.date(byAdding: .day, value: -1, to: candidate)! }
+            normalizedSmartphoneEndTime = candidate
+        }
         let factors = try SleepFactors(
             awakeningCount: awakeningCount,
             snoozeCount: snoozeCount,
@@ -91,9 +101,11 @@ struct SleepRecordDraft {
             napMinutes: napMinutes,
             consumedAlcohol: consumedAlcohol,
             consumedCaffeine: consumedCaffeine,
-            smartphoneEndTime: smartphoneEndTime,
+            smartphoneEndTime: normalizedSmartphoneEndTime,
             stress: stress,
-            comfort: comfort
+            comfort: comfort,
+            reportedSnoring: reportedSnoring,
+            reportedBreathingPause: reportedBreathingPause
         )
         return try SleepRecord(
             id: id,

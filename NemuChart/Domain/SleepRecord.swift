@@ -10,6 +10,8 @@ struct SleepFactors: Codable, Equatable, Sendable {
     var smartphoneEndTime: Date?
     var stress: Rating?
     var comfort: Rating?
+    var reportedSnoring: Bool?
+    var reportedBreathingPause: Bool?
 
     init(
         awakeningCount: Int? = nil,
@@ -20,7 +22,9 @@ struct SleepFactors: Codable, Equatable, Sendable {
         consumedCaffeine: Bool? = nil,
         smartphoneEndTime: Date? = nil,
         stress: Rating? = nil,
-        comfort: Rating? = nil
+        comfort: Rating? = nil,
+        reportedSnoring: Bool? = nil,
+        reportedBreathingPause: Bool? = nil
     ) throws {
         let nonNegativeValues = [awakeningCount, snoozeCount, secondSleepMinutes, napMinutes]
         guard nonNegativeValues.compactMap({ $0 }).allSatisfy({ $0 >= 0 }) else {
@@ -42,6 +46,8 @@ struct SleepFactors: Codable, Equatable, Sendable {
         self.smartphoneEndTime = smartphoneEndTime
         self.stress = stress
         self.comfort = comfort
+        self.reportedSnoring = reportedSnoring
+        self.reportedBreathingPause = reportedBreathingPause
     }
 }
 
@@ -114,4 +120,3 @@ enum SleepRecordValidationError: Error, Equatable, LocalizedError {
         }
     }
 }
-

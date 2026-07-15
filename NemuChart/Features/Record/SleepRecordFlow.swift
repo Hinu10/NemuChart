@@ -5,6 +5,8 @@ struct SleepRecordFlow: View {
     let scoringService: any ScoringServiceProtocol
     let feedbackService: SheepFeedbackService
     let goalRepository: (any SleepGoalRepository)?
+    let preferences: AppPreferencesStore?
+    let notificationService: (any LocalNotificationServiceProtocol)?
     let settings: UserSettings
     var onSaved: () -> Void = {}
 
@@ -28,6 +30,8 @@ struct SleepRecordFlow: View {
         settings: UserSettings,
         feedbackService: SheepFeedbackService = SheepFeedbackService(),
         goalRepository: (any SleepGoalRepository)? = nil,
+        preferences: AppPreferencesStore? = nil,
+        notificationService: (any LocalNotificationServiceProtocol)? = nil,
         initialRecord: SleepRecord? = nil,
         onSaved: @escaping () -> Void = {}
     ) {
@@ -36,6 +40,8 @@ struct SleepRecordFlow: View {
         self.settings = settings
         self.feedbackService = feedbackService
         self.goalRepository = goalRepository
+        self.preferences = preferences
+        self.notificationService = notificationService
         self.onSaved = onSaved
         _draft = State(initialValue: initialRecord.map(SleepRecordDraft.init(record:)) ?? SleepRecordDraft())
     }
@@ -69,8 +75,14 @@ struct SleepRecordFlow: View {
         }
         .interactiveDismissDisabled(isSaving)
         .sheet(isPresented: $showingGoal) {
-            if let goalRepository {
-                TonightGoalView(settings: settings, repository: goalRepository) { dismiss() }
+            if let goalRepository, let preferences {
+                TonightGoalView(
+                    settings: settings,
+                    records: (try? repository.records()) ?? [],
+                    repository: goalRepository,
+                    preferences: preferences,
+                    notificationService: notificationService
+                ) { dismiss() }
             }
         }
         .alert("入力を確認してください", isPresented: Binding(
@@ -134,6 +146,8 @@ struct SleepRecordFlow: View {
                     }
                     OptionalRatingPicker(title: "ストレス", value: $draft.stress)
                     OptionalRatingPicker(title: "快適さ", value: $draft.comfort)
+                    OptionalBoolPicker(title: "いびきの指摘", value: $draft.reportedSnoring, trueLabel: "指摘あり", falseLabel: "なし")
+                    OptionalBoolPicker(title: "呼吸が止まったとの指摘", value: $draft.reportedBreathingPause, trueLabel: "指摘あり", falseLabel: "なし")
                 }
                 Text("任意項目は空欄のままで構いません。「未入力」と「なし／0回」は区別して保存されます。")
                     .font(.footnote)

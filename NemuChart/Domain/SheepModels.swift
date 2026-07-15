@@ -73,8 +73,25 @@ struct SheepFeedback: Equatable, Sendable {
 
 enum WeeklyGoalKind: String, Codable, CaseIterable, Sendable {
     case recordSleep
+    case meetWakeTime
     case meetSleepDuration
+    case endSmartphone
     case meetBedtime
+}
+
+enum DailyActionGoal: String, Codable, CaseIterable, Sendable {
+    case windDown
+    case avoidLateCaffeine
+    case putPhoneAway
+    case prepareMorning
+}
+
+struct GoalPlan: Equatable, Sendable {
+    let targetBedTime: LocalTime
+    let targetSleepTime: LocalTime
+    let targetWakeTime: LocalTime
+    let sleepLatencyMinutes: Int
+    let usedObservedLatency: Bool
 }
 
 struct WeeklyGoal: Identifiable, Codable, Equatable, Sendable {
