@@ -3,6 +3,8 @@ import SwiftUI
 struct SleepRecordFlow: View {
     let repository: any SleepRecordRepository
     let scoringService: any ScoringServiceProtocol
+    let feedbackService: SheepFeedbackService
+    let goalRepository: (any SleepGoalRepository)?
     let settings: UserSettings
     var onSaved: () -> Void = {}
 
@@ -14,6 +16,8 @@ struct SleepRecordFlow: View {
     @State private var score: DailySleepScore?
     @State private var comparison: ScoreComparison = .init(previous: nil, recentAverage: nil)
     @State private var isSaving = false
+    @State private var growthPointsEarned = 0
+    @State private var showingGoal = false
     @State private var errorMessage: String?
     @State private var duplicate: SleepRecord?
     @State private var optionalExpanded = false
@@ -22,12 +26,16 @@ struct SleepRecordFlow: View {
         repository: any SleepRecordRepository,
         scoringService: any ScoringServiceProtocol,
         settings: UserSettings,
+        feedbackService: SheepFeedbackService = SheepFeedbackService(),
+        goalRepository: (any SleepGoalRepository)? = nil,
         initialRecord: SleepRecord? = nil,
         onSaved: @escaping () -> Void = {}
     ) {
         self.repository = repository
         self.scoringService = scoringService
         self.settings = settings
+        self.feedbackService = feedbackService
+        self.goalRepository = goalRepository
         self.onSaved = onSaved
         _draft = State(initialValue: initialRecord.map(SleepRecordDraft.init(record:)) ?? SleepRecordDraft())
     }
@@ -40,7 +48,14 @@ struct SleepRecordFlow: View {
                 case .confirmation: confirmation
                 case .result:
                     if let score, let savedRecord {
-                        DailyScoreView(score: score, record: savedRecord, comparison: comparison)
+                        DailyScoreView(
+                            score: score,
+                            record: savedRecord,
+                            comparison: comparison,
+                            feedback: feedbackService.feedback(for: score),
+                            growthPointsEarned: growthPointsEarned,
+                            onSetGoal: goalRepository == nil ? nil : { showingGoal = true }
+                        )
                     }
                 }
             }
@@ -53,6 +68,11 @@ struct SleepRecordFlow: View {
             }
         }
         .interactiveDismissDisabled(isSaving)
+        .sheet(isPresented: $showingGoal) {
+            if let goalRepository {
+                TonightGoalView(settings: settings, repository: goalRepository) { dismiss() }
+            }
+        }
         .alert("入力を確認してください", isPresented: Binding(
             get: { errorMessage != nil },
             set: { if !$0 { errorMessage = nil } }
@@ -170,7 +190,15 @@ struct SleepRecordFlow: View {
         defer { isSaving = false }
         do {
             switch try repository.save(record) {
-            case .created(let saved), .updated(let saved):
+            case .created(let saved):
+                growthPointsEarned = SheepGrowthService.pointsPerRecord
+                savedRecord = saved
+                score = try scoringService.score(record: saved, settings: settings)
+                comparison = try makeComparison(for: saved)
+                phase = .result
+                onSaved()
+            case .updated(let saved):
+                growthPointsEarned = 0
                 savedRecord = saved
                 score = try scoringService.score(record: saved, settings: settings)
                 comparison = try makeComparison(for: saved)

@@ -35,12 +35,40 @@ struct SheepState: Codable, Equatable, Sendable {
     var growthPoints: GrowthPoints
 }
 
+struct SheepGrowthSummary: Equatable, Sendable {
+    let points: GrowthPoints
+    let stage: GrowthStage
+    let pointsToNextStage: Int?
+}
+
 enum LandscapeCondition: String, Codable, CaseIterable, Sendable {
     case dawn
     case daytime
     case sunset
     case night
     case restfulNight
+}
+
+enum LandscapeMood: String, Codable, CaseIterable, Sendable {
+    case clear
+    case gentle
+    case cloudy
+}
+
+struct LandscapeState: Equatable, Sendable {
+    let timeOfDay: HomeTimeOfDay
+    let mood: LandscapeMood
+}
+
+struct SheepFeedback: Equatable, Sendable {
+    let status: String
+    let positivePoint: String
+    let suggestion: String?
+    let closing: String
+
+    var combinedMessage: String {
+        [status, positivePoint, suggestion, closing].compactMap { $0 }.joined(separator: "\n")
+    }
 }
 
 enum WeeklyGoalKind: String, Codable, CaseIterable, Sendable {
@@ -84,4 +112,3 @@ struct WeeklyGoal: Identifiable, Codable, Equatable, Sendable {
 enum WeeklyGoalError: Error, Equatable {
     case invalidProgress
 }
-

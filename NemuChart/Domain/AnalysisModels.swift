@@ -64,6 +64,37 @@ enum AnalysisConfidence: String, Codable, CaseIterable, Sendable {
     case high
 }
 
+struct ConfidenceAssessment: Equatable, Sendable {
+    let level: AnalysisConfidence
+    let reason: String
+    let recordCount: Int
+    let optionalDataCompleteness: Double
+}
+
+struct WeeklyMetrics: Equatable, Sendable {
+    let startDay: SleepDay
+    let endDay: SleepDay
+    let recordsByDay: [String: SleepRecord]
+    let recordedDayCount: Int
+    let averageSleepDuration: TimeInterval?
+    let bedTimeVariationMinutes: Double?
+    let wakeTimeVariationMinutes: Double?
+    let averageFreshness: Double?
+    let snoozeRate: Double?
+    let sleepDurationGoalRate: Double?
+    let weeklyScore: Int?
+    let previousWeekScoreDifference: Int?
+    let confidence: ConfidenceAssessment
+}
+
+struct ComfortableDurationEstimate: Equatable, Sendable {
+    let lowerBoundMinutes: Int
+    let upperBoundMinutes: Int
+    let sampleCount: Int
+    let confidence: AnalysisConfidence
+    let explanation: String
+}
+
 struct WeeklySleepReport: Codable, Equatable, Sendable {
     let startDay: SleepDay
     let endDay: SleepDay
@@ -101,4 +132,3 @@ enum ScoreValidationError: Error, Equatable {
     case missingRuleVersion
     case invalidWeeklyReport
 }
-

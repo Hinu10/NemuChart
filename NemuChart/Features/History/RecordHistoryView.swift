@@ -4,6 +4,8 @@ struct RecordHistoryView: View {
     let repository: any SleepRecordRepository
     let scoringService: any ScoringServiceProtocol
     let settings: UserSettings
+    var feedbackService: SheepFeedbackService = SheepFeedbackService()
+    var goalRepository: (any SleepGoalRepository)?
     @Environment(\.dismiss) private var dismiss
     @State private var records: [SleepRecord] = []
     @State private var selectedRecord: SleepRecord?
@@ -38,6 +40,8 @@ struct RecordHistoryView: View {
                 repository: repository,
                 scoringService: scoringService,
                 settings: settings,
+                feedbackService: feedbackService,
+                goalRepository: goalRepository,
                 initialRecord: record,
                 onSaved: load
             )

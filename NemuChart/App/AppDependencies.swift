@@ -8,6 +8,11 @@ final class AppDependencies {
     let sleepGoalRepository: any SleepGoalRepository
     let dateTimeService: any DateTimeServiceProtocol
     let scoringService: any ScoringServiceProtocol
+    let feedbackService: SheepFeedbackService
+    let weeklyAnalysisService: WeeklyAnalysisService
+    let vitalityService: SheepVitalityService
+    let growthService: SheepGrowthService
+    let landscapeService: LandscapeStateService
 
     init(modelContainer: ModelContainer) {
         self.modelContainer = modelContainer
@@ -17,6 +22,11 @@ final class AppDependencies {
         sleepGoalRepository = SwiftDataSleepGoalRepository(context: context)
         dateTimeService = DateTimeService()
         scoringService = DailyScoreCalculator()
+        feedbackService = SheepFeedbackService()
+        weeklyAnalysisService = WeeklyAnalysisService()
+        vitalityService = SheepVitalityService()
+        growthService = SheepGrowthService()
+        landscapeService = LandscapeStateService()
     }
 
     static func live() throws -> AppDependencies {

@@ -9,6 +9,9 @@ struct DailyScoreView: View {
     let score: DailySleepScore
     let record: SleepRecord
     let comparison: ScoreComparison
+    var feedback: SheepFeedback?
+    var growthPointsEarned: Int = 0
+    var onSetGoal: (() -> Void)?
     @State private var showingExplanation = false
 
     var body: some View {
@@ -49,6 +52,35 @@ struct DailyScoreView: View {
                     }
                 }
                 .frame(maxWidth: .infinity)
+
+                if let feedback {
+                    GroupBox("羊からのひとこと") {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text(feedback.status).font(.headline)
+                            Text(feedback.positivePoint)
+                            if let suggestion = feedback.suggestion {
+                                Label(suggestion, systemImage: "lightbulb")
+                            }
+                            Text(feedback.closing).foregroundStyle(.secondary)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
+
+                GroupBox("成長ポイント") {
+                    if growthPointsEarned > 0 {
+                        Label("記録できたので +\(growthPointsEarned)ポイント", systemImage: "sparkles")
+                    } else {
+                        Text("編集内容を保存しました。ポイントは二重に加算されません。")
+                    }
+                }
+                .frame(maxWidth: .infinity)
+
+                if let onSetGoal {
+                    Button("今夜の目標を設定する", action: onSetGoal)
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.large)
+                }
 
                 Button("スコアの計算方法") { showingExplanation = true }
                 Text("このスコアは入力内容と個人目標を比べた参考値で、医療上の評価ではありません。")
