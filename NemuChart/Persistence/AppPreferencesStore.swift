@@ -5,6 +5,39 @@ struct AppPreferenceData: Codable, Equatable {
     var weeklyGoal: WeeklyGoal?
     var rewardedWeeklyGoalIDs: Set<UUID> = []
     var safetyGuidanceDismissedAt: Date?
+    var alarmSound: AlarmSoundChoice = .system
+    var alarmResults: [AlarmResult] = []
+
+    private enum CodingKeys: String, CodingKey {
+        case actionGoal, weeklyGoal, rewardedWeeklyGoalIDs, safetyGuidanceDismissedAt
+        case alarmSound, alarmResults
+    }
+
+    init(
+        actionGoal: DailyActionGoal? = nil,
+        weeklyGoal: WeeklyGoal? = nil,
+        rewardedWeeklyGoalIDs: Set<UUID> = [],
+        safetyGuidanceDismissedAt: Date? = nil,
+        alarmSound: AlarmSoundChoice = .system,
+        alarmResults: [AlarmResult] = []
+    ) {
+        self.actionGoal = actionGoal
+        self.weeklyGoal = weeklyGoal
+        self.rewardedWeeklyGoalIDs = rewardedWeeklyGoalIDs
+        self.safetyGuidanceDismissedAt = safetyGuidanceDismissedAt
+        self.alarmSound = alarmSound
+        self.alarmResults = alarmResults
+    }
+
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        actionGoal = try values.decodeIfPresent(DailyActionGoal.self, forKey: .actionGoal)
+        weeklyGoal = try values.decodeIfPresent(WeeklyGoal.self, forKey: .weeklyGoal)
+        rewardedWeeklyGoalIDs = try values.decodeIfPresent(Set<UUID>.self, forKey: .rewardedWeeklyGoalIDs) ?? []
+        safetyGuidanceDismissedAt = try values.decodeIfPresent(Date.self, forKey: .safetyGuidanceDismissedAt)
+        alarmSound = try values.decodeIfPresent(AlarmSoundChoice.self, forKey: .alarmSound) ?? .system
+        alarmResults = try values.decodeIfPresent([AlarmResult].self, forKey: .alarmResults) ?? []
+    }
 }
 
 @MainActor

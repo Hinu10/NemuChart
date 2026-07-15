@@ -18,6 +18,9 @@ final class AppDependencies {
     let notificationService: any LocalNotificationServiceProtocol
     let preferences: AppPreferencesStore
     let safetyGuidanceService: SafetyGuidanceService
+    let lifestyleAssociationService: LifestyleAssociationService
+    let longTermReportService: LongTermReportService
+    let exportService: SleepDataExportService
 
     init(modelContainer: ModelContainer) {
         self.modelContainer = modelContainer
@@ -37,6 +40,9 @@ final class AppDependencies {
         notificationService = LocalNotificationService()
         preferences = AppPreferencesStore()
         safetyGuidanceService = SafetyGuidanceService()
+        lifestyleAssociationService = LifestyleAssociationService()
+        longTermReportService = LongTermReportService()
+        exportService = SleepDataExportService()
     }
 
     static func live() throws -> AppDependencies {

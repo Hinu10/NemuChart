@@ -65,6 +65,11 @@ struct SettingsView: View {
                         Text("NemuChartは診断や治療を行いません。強い眠気などが続いて気になる場合は、医療機関などへの相談を検討してください。記録は端末内に保存し、外部へ送信しません。")
                     }
                 }
+                Section("追加機能") {
+                    NavigationLink("分析・アラーム・書き出し") {
+                        FutureFeaturesView(dependencies: dependencies)
+                    }
+                }
                 Section {
                     Button("設定を保存") { save() }.frame(maxWidth: .infinity)
                 }

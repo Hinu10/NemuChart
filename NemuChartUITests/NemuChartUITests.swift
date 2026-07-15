@@ -3,6 +3,7 @@ import XCTest
 final class NemuChartUITests: XCTestCase {
     func testPrimaryFlowHasAccessibleLabels() {
         let app = XCUIApplication()
+        app.launchEnvironment["NEMUCHART_UI_TESTING"] = "1"
         app.launch()
 
         let onboarding = app.navigationBars["はじめまして"]
@@ -23,5 +24,25 @@ final class NemuChartUITests: XCTestCase {
         record.tap()
         XCTAssertTrue(app.navigationBars["睡眠を記録"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.buttons["reviewSleepRecord"].exists)
+    }
+
+    func testFreshInstallShowsDataShortageWithoutFakeValues() {
+        let app = XCUIApplication()
+        app.launchEnvironment["NEMUCHART_UI_TESTING"] = "1"
+        app.launch()
+        completeOnboarding(in: app)
+
+        app.buttons["7日間の分析を見る"].tap()
+        XCTAssertTrue(app.navigationBars["7日間の振り返り"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["0 / 7日記録"].exists)
+        XCTAssertTrue(app.staticTexts["分析信頼度：準備中"].exists)
+    }
+
+    private func completeOnboarding(in app: XCUIApplication) {
+        guard app.navigationBars["はじめまして"].waitForExistence(timeout: 3) else { return }
+        let next = app.buttons["onboardingPrimaryButton"]
+        next.tap()
+        next.tap()
+        XCTAssertTrue(app.navigationBars["NemuChart"].waitForExistence(timeout: 3))
     }
 }
