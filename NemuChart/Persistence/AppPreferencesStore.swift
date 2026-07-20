@@ -3,19 +3,21 @@ import Foundation
 struct AppPreferenceData: Codable, Equatable {
     var actionGoal: DailyActionGoal?
     var weeklyGoal: WeeklyGoal?
+    var weeklyGoalFirstConfiguredAt: Date?
     var rewardedWeeklyGoalIDs: Set<UUID> = []
     var safetyGuidanceDismissedAt: Date?
     var alarmSound: AlarmSoundChoice = .system
     var alarmResults: [AlarmResult] = []
 
     private enum CodingKeys: String, CodingKey {
-        case actionGoal, weeklyGoal, rewardedWeeklyGoalIDs, safetyGuidanceDismissedAt
+        case actionGoal, weeklyGoal, weeklyGoalFirstConfiguredAt, rewardedWeeklyGoalIDs, safetyGuidanceDismissedAt
         case alarmSound, alarmResults
     }
 
     init(
         actionGoal: DailyActionGoal? = nil,
         weeklyGoal: WeeklyGoal? = nil,
+        weeklyGoalFirstConfiguredAt: Date? = nil,
         rewardedWeeklyGoalIDs: Set<UUID> = [],
         safetyGuidanceDismissedAt: Date? = nil,
         alarmSound: AlarmSoundChoice = .system,
@@ -23,6 +25,7 @@ struct AppPreferenceData: Codable, Equatable {
     ) {
         self.actionGoal = actionGoal
         self.weeklyGoal = weeklyGoal
+        self.weeklyGoalFirstConfiguredAt = weeklyGoalFirstConfiguredAt
         self.rewardedWeeklyGoalIDs = rewardedWeeklyGoalIDs
         self.safetyGuidanceDismissedAt = safetyGuidanceDismissedAt
         self.alarmSound = alarmSound
@@ -33,6 +36,7 @@ struct AppPreferenceData: Codable, Equatable {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         actionGoal = try values.decodeIfPresent(DailyActionGoal.self, forKey: .actionGoal)
         weeklyGoal = try values.decodeIfPresent(WeeklyGoal.self, forKey: .weeklyGoal)
+        weeklyGoalFirstConfiguredAt = try values.decodeIfPresent(Date.self, forKey: .weeklyGoalFirstConfiguredAt)
         rewardedWeeklyGoalIDs = try values.decodeIfPresent(Set<UUID>.self, forKey: .rewardedWeeklyGoalIDs) ?? []
         safetyGuidanceDismissedAt = try values.decodeIfPresent(Date.self, forKey: .safetyGuidanceDismissedAt)
         alarmSound = try values.decodeIfPresent(AlarmSoundChoice.self, forKey: .alarmSound) ?? .system

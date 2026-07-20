@@ -12,6 +12,8 @@ struct HomeView: View {
     @State private var showingHistory = false
     @State private var showingWeekly = false
     @State private var showingWeeklyGoal = false
+    @State private var proposedWeeklyGoalStart: SleepDay?
+    @State private var weeklyGoalPromptDismissedForSession = false
     @State private var showingSettings = false
     @State private var records: [SleepRecord] = []
     @State private var scores: [DailySleepScore] = []
@@ -19,6 +21,7 @@ struct HomeView: View {
     @State private var preferenceData = AppPreferenceData()
     @State private var safetyGuidance: SafetyGuidance?
     @State private var loadError: String?
+    @State private var sheepAnimating = false
 
     private var period: HomeTimeOfDay { TimeOfDayPolicy().period(at: now) }
     private var vitality: Vitality { dependencies.vitalityService.vitality(scores: scores) }
@@ -34,27 +37,38 @@ struct HomeView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
-                    Text(period.title).font(.largeTitle.bold())
-                    Text(period.message).font(.title3).foregroundStyle(.secondary)
+                    Image("NemuChartLogoCropped")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 86)
+                        .accessibilityLabel("NemuChart")
+                    greetingHeader
                     landscapeCard
                     if let safetyGuidance { safetyCard(safetyGuidance) }
                     if period == .morning {
-                        Button("昨夜の睡眠を記録する") { showingRecord = true }
-                            .buttonStyle(.borderedProminent)
-                            .controlSize(.large)
+                        if hasRecordForCurrentSleepDay {
+                            Label("昨夜の睡眠は記録済み", systemImage: "checkmark.circle.fill")
+                                .font(.headline)
+                                .foregroundStyle(.green)
+                                .padding()
+                                .frame(maxWidth: .infinity)
+                                .background(.green.opacity(0.1), in: RoundedRectangle(cornerRadius: 16))
+                                .accessibilityHint("編集は過去の記録から行えます")
+                        } else {
+                            Button("昨夜の睡眠を記録する") { showingRecord = true }
+                                .buttonStyle(.borderedProminent)
+                                .controlSize(.large)
+                        }
                     } else if period == .daytime || period == .evening {
                         GroupBox("今日の目安") {
-                            Text("希望睡眠時間は \(Int(settings.desiredSleepDuration / 3600))時間です。今夜の目標は後から設定できます。")
+                            Text("希望睡眠時間は \(durationText(settings.desiredSleepDuration))です。今夜の目標は後から設定できます。")
                         }
                     } else {
                         Text("記録は明日の朝に。いまは端末を置いて、ゆっくり休みましょう。")
                             .padding()
                             .background(.indigo.opacity(0.1), in: RoundedRectangle(cornerRadius: 16))
                     }
-                    Button("時間帯にかかわらず記録する") { showingRecord = true }
-                        .font(.footnote)
-                        .frame(minHeight: 44)
-                        .accessibilityHint("朝以外でも睡眠入力画面を開きます")
                     Button {
                         showingWeekly = true
                     } label: {
@@ -62,13 +76,9 @@ struct HomeView: View {
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.bordered)
-                    Button {
-                        showingWeeklyGoal = true
-                    } label: {
-                        Label("週間目標を確認", systemImage: "checklist")
-                            .frame(maxWidth: .infinity)
+                    if let weeklyGoal = preferenceData.weeklyGoal {
+                        weeklyGoalCard(weeklyGoal)
                     }
-                    .buttonStyle(.bordered)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding()
@@ -113,13 +123,17 @@ struct HomeView: View {
                 settings: settings
             )
         }
-        .sheet(isPresented: $showingWeeklyGoal, onDismiss: loadDashboard) {
+        .sheet(isPresented: $showingWeeklyGoal, onDismiss: {
+            weeklyGoalPromptDismissedForSession = true
+            loadDashboard()
+        }) {
             WeeklyGoalView(
                 repository: dependencies.sleepRecordRepository,
                 sleepGoalRepository: dependencies.sleepGoalRepository,
                 preferences: dependencies.preferences,
                 progressService: dependencies.weeklyGoalProgressService,
-                settings: settings
+                settings: settings,
+                proposedWeekStart: proposedWeeklyGoalStart
             )
         }
         .sheet(isPresented: $showingSettings) {
@@ -132,7 +146,11 @@ struct HomeView: View {
         }
         .task { loadDashboard() }
         .onChange(of: scenePhase) { _, phase in
-            if phase == .active { now = Date(); loadDashboard() }
+            if phase == .active {
+                weeklyGoalPromptDismissedForSession = false
+                now = Date()
+                loadDashboard()
+            }
         }
         .alert("データを読み込めませんでした", isPresented: Binding(
             get: { loadError != nil }, set: { if !$0 { loadError = nil } }
@@ -140,32 +158,71 @@ struct HomeView: View {
     }
 
     private var landscapeCard: some View {
-        VStack(spacing: 14) {
-            HStack {
-                Image(systemName: period.symbol)
-                Spacer()
-                Image(systemName: landscape.mood.symbol)
+        ZStack {
+            Image("sheep-landscape")
+                .resizable()
+                .scaledToFill()
+                .overlay(landscapeTint)
+                .accessibilityHidden(true)
+            VStack(spacing: 14) {
+                HStack {
+                    Image(systemName: period.symbol)
+                    Spacer()
+                    Image(systemName: landscape.mood.symbol)
+                }
+                .font(.title)
+                .foregroundStyle(.white)
+                .shadow(radius: 3)
+                .accessibilityHidden(true)
+                Image(sheepAssetName)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(height: 168)
+                    .scaleEffect(reduceMotion ? 1 : (sheepAnimating ? sheepScale : 0.97))
+                    .rotationEffect(.degrees(reduceMotion ? 0 : (sheepAnimating ? sheepRotation : -sheepRotation)))
+                    .offset(y: reduceMotion ? 0 : (sheepAnimating ? sheepOffset : -2))
+                    .animation(reduceMotion ? nil : .easeInOut(duration: sheepAnimationDuration).repeatForever(autoreverses: true), value: sheepAnimating)
+                    .accessibilityLabel("羊は\(vitality.displayName)状態です")
+                ViewThatFits(in: .horizontal) {
+                    HStack { sheepStateSummary; Spacer(); growthSummary }
+                    VStack(alignment: .leading, spacing: 8) { sheepStateSummary; growthSummary }
+                }
+                .padding(12)
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14))
+                ProgressView(value: Double(weeklyMetrics?.recordedDayCount ?? 0), total: 7) {
+                    Text("今週の記録 \(weeklyMetrics?.recordedDayCount ?? 0) / 7日")
+                }
+                .tint(.white)
+                .padding(12)
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14))
             }
-            .font(.title).accessibilityHidden(true)
-            Text("🐑")
-                .font(.system(size: 72))
-                .scaleEffect(reduceMotion ? 1 : (vitality == .radiant ? 1.04 : 1))
-                .animation(reduceMotion ? nil : .easeInOut(duration: 1.2), value: vitality)
-                .accessibilityLabel("羊は\(vitality.displayName)状態です")
-            ViewThatFits(in: .horizontal) {
-                HStack { sheepStateSummary; Spacer(); growthSummary }
-                VStack(alignment: .leading, spacing: 8) { sheepStateSummary; growthSummary }
-            }
-            ProgressView(value: Double(weeklyMetrics?.recordedDayCount ?? 0), total: 7) {
-                Text("今週の記録 \(weeklyMetrics?.recordedDayCount ?? 0) / 7日")
+            .padding()
+        }
+        .frame(minHeight: 410)
+        .clipShape(RoundedRectangle(cornerRadius: 22))
+        .onAppear { sheepAnimating = true }
+    }
+
+    private var greetingHeader: some View {
+        HStack(alignment: .top, spacing: 14) {
+            Image(systemName: period.symbol)
+                .font(.title)
+                .foregroundStyle(period.accentColor)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 7) {
+                Text(period.title)
+                    .font(.system(.largeTitle, design: .rounded, weight: .heavy))
+                    .foregroundStyle(period.titleGradient)
+                    .shadow(color: period.accentColor.opacity(0.22), radius: 5, y: 2)
+                Text(period.message)
+                    .font(.headline)
+                    .foregroundStyle(.secondary)
             }
         }
-        .padding()
-        .background(
-            LinearGradient(colors: landscape.colors, startPoint: .topLeading, endPoint: .bottomTrailing),
-            in: RoundedRectangle(cornerRadius: 22)
-        )
-        .foregroundStyle(.primary)
+        .padding(18)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 22))
+        .accessibilityElement(children: .combine)
     }
 
     private var sheepStateSummary: some View {
@@ -179,6 +236,58 @@ struct HomeView: View {
         VStack(alignment: .leading) {
             Text("成長").font(.caption).foregroundStyle(.secondary)
             Text("\(growth.stage.displayName)・\(growth.points.value) pt").bold()
+        }
+    }
+
+    private var hasRecordForCurrentSleepDay: Bool {
+        guard let day = try? dependencies.dateTimeService.sleepDay(
+            for: now,
+            timeZoneIdentifier: TimeZone.current.identifier
+        ) else { return false }
+        return records.contains { $0.sleepDay.key == day.key }
+    }
+
+    private var sheepAssetName: String {
+        switch vitality {
+        case .resting: "sheep-resting"
+        case .calm: "sheep-calm"
+        case .lively: "sheep-lively"
+        case .radiant: "sheep-radiant"
+        }
+    }
+
+    private var sheepScale: CGFloat { vitality == .radiant ? 1.05 : 1.01 }
+    private var sheepRotation: Double { vitality == .resting ? 2.5 : vitality == .radiant ? 1.5 : 0.5 }
+    private var sheepOffset: CGFloat { vitality == .radiant ? -10 : vitality == .lively ? -4 : 1 }
+    private var sheepAnimationDuration: Double { vitality == .radiant ? 0.7 : vitality == .resting ? 1.6 : 2.2 }
+
+    private var landscapeTint: some View {
+        LinearGradient(
+            colors: [
+                landscape.mood == .cloudy ? Color.gray.opacity(0.34) : .clear,
+                period == .night ? Color.indigo.opacity(0.22) : .clear
+            ],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+
+    private func weeklyGoalCard(_ goal: WeeklyGoal) -> some View {
+        GroupBox("今週の目標") {
+            VStack(alignment: .leading, spacing: 10) {
+                Text(goal.kind.displayName).font(.headline)
+                HStack(alignment: .firstTextBaseline) {
+                    Text("\(goal.completedCount) / \(goal.targetCount)")
+                        .font(.system(size: 32, weight: .bold, design: .rounded))
+                    Text("回").foregroundStyle(.secondary)
+                    Spacer()
+                    Text("残り\(dependencies.weeklyGoalProgressService.remainingDays(weekStart: goal.weekStart))日")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                ProgressView(value: goal.progress)
+                    .accessibilityLabel("週間目標の進捗")
+                    .accessibilityValue("\(goal.completedCount)回、目標\(goal.targetCount)回")
+            }
         }
     }
 
@@ -207,6 +316,7 @@ struct HomeView: View {
                 records: records, endDay: endDay, settings: settings, scoringService: dependencies.scoringService
             )
             preferenceData = dependencies.preferences.load()
+            try prepareWeeklyGoalIfNeeded()
             try refreshWeeklyGoalIfNeeded()
             safetyGuidance = dependencies.safetyGuidanceService.guidance(
                 records: records, dismissedAt: preferenceData.safetyGuidanceDismissedAt
@@ -216,14 +326,11 @@ struct HomeView: View {
 
     private func refreshWeeklyGoalIfNeeded() throws {
         guard let existing = preferenceData.weeklyGoal else { return }
-        let start = try dependencies.weeklyGoalProgressService.weekStart(
-            containing: now, settings: settings
-        )
         let latestGoal = try dependencies.sleepGoalRepository.goals().first
         let progress = try dependencies.weeklyGoalProgressService.progress(
             kind: existing.kind,
             targetCount: existing.targetCount,
-            weekStart: start,
+            weekStart: existing.weekStart,
             records: records,
             settings: settings,
             latestGoal: latestGoal
@@ -231,7 +338,7 @@ struct HomeView: View {
         let updated = try WeeklyGoal(
             id: existing.id,
             kind: existing.kind,
-            weekStart: start,
+            weekStart: existing.weekStart,
             targetCount: existing.targetCount,
             completedCount: progress.completedCount
         )
@@ -240,6 +347,37 @@ struct HomeView: View {
             preferenceData.rewardedWeeklyGoalIDs.insert(updated.id)
         }
         try dependencies.preferences.save(preferenceData)
+    }
+
+    private func prepareWeeklyGoalIfNeeded() throws {
+        let today = try dependencies.dateTimeService.sleepDay(
+            for: now,
+            timeZoneIdentifier: TimeZone.current.identifier
+        )
+        let monday = try dependencies.weeklyGoalProgressService.mondayStart(containing: now)
+
+        if let existing = preferenceData.weeklyGoal {
+            if preferenceData.weeklyGoalFirstConfiguredAt == nil {
+                preferenceData.weeklyGoalFirstConfiguredAt = now
+                try dependencies.preferences.save(preferenceData)
+            }
+            let nextMonday = try dependencies.weeklyGoalProgressService.nextMonday(after: existing.weekStart)
+            if today >= nextMonday {
+                preferenceData.weeklyGoal = nil
+                proposedWeeklyGoalStart = monday
+                try dependencies.preferences.save(preferenceData)
+                if !weeklyGoalPromptDismissedForSession { showingWeeklyGoal = true }
+            }
+            return
+        }
+
+        proposedWeeklyGoalStart = preferenceData.weeklyGoalFirstConfiguredAt == nil ? today : monday
+        if !weeklyGoalPromptDismissedForSession { showingWeeklyGoal = true }
+    }
+
+    private func durationText(_ interval: TimeInterval) -> String {
+        let minutes = Int(interval / 60)
+        return minutes % 60 == 0 ? "\(minutes / 60)時間" : "\(minutes / 60)時間\(minutes % 60)分"
     }
 }
 
@@ -324,5 +462,20 @@ private extension HomeTimeOfDay {
         case .evening: "sunset.fill"
         case .night: "moon.stars.fill"
         }
+    }
+    var accentColor: Color {
+        switch self {
+        case .morning: .orange
+        case .daytime: .cyan
+        case .evening: .purple
+        case .night: .indigo
+        }
+    }
+    var titleGradient: LinearGradient {
+        LinearGradient(
+            colors: [accentColor, accentColor.opacity(0.62), .mint],
+            startPoint: .leading,
+            endPoint: .trailing
+        )
     }
 }

@@ -118,7 +118,7 @@ struct SleepDataExportService: Sendable {
     func csv(records: [SleepRecord]) -> Data {
         let header = [
             "id", "sleepDay", "timeZone", "bedTime", "sleepStart", "wakeTime", "freshness",
-            "awakeningCount", "snoozeCount", "secondSleepMinutes", "napMinutes", "consumedAlcohol",
+            "isAllNighter", "awakeningCount", "snoozeCount", "secondSleepMinutes", "napMinutes", "consumedAlcohol",
             "consumedCaffeine", "smartphoneEndTime", "stress", "comfort", "reportedSnoring",
             "reportedBreathingPause", "createdAt", "updatedAt"
         ]
@@ -129,7 +129,7 @@ struct SleepDataExportService: Sendable {
                 record.id.uuidString, record.sleepDay.key, record.sleepDay.timeZoneIdentifier,
                 formatter.string(from: record.bedTime), formatter.string(from: record.sleepStart),
                 formatter.string(from: record.wakeTime), String(record.freshness.rawValue),
-                text(factors.awakeningCount), text(factors.snoozeCount), text(factors.secondSleepMinutes),
+                String(record.isAllNighter), text(factors.awakeningCount), text(factors.snoozeCount), text(factors.secondSleepMinutes),
                 text(factors.napMinutes), text(factors.consumedAlcohol), text(factors.consumedCaffeine),
                 factors.smartphoneEndTime.map(formatter.string(from:)) ?? "", text(factors.stress?.rawValue),
                 text(factors.comfort?.rawValue), text(factors.reportedSnoring), text(factors.reportedBreathingPause),

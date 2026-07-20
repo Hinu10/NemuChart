@@ -23,6 +23,7 @@ struct WeeklyAnalysisService: Sendable {
         let previousScore = average(previousScores).map { Int($0.rounded()) }
         let optionalCompleteness = completeness(of: current)
         let confidence = confidence(recordCount: current.count, completeness: optionalCompleteness)
+        let sleptRecords = current.filter { !$0.isAllNighter }
 
         return WeeklyMetrics(
             startDay: startDay,
@@ -30,9 +31,9 @@ struct WeeklyAnalysisService: Sendable {
             recordsByDay: Dictionary(uniqueKeysWithValues: current.map { ($0.sleepDay.key, $0) }),
             recordedDayCount: current.count,
             averageSleepDuration: average(current.map(\.sleepDuration)),
-            bedTimeVariationMinutes: variation(of: current.map(\.bedTime), timeZoneIdentifier: endDay.timeZoneIdentifier, treatsEarlyMorningAsNextDay: true),
-            wakeTimeVariationMinutes: variation(of: current.map(\.wakeTime), timeZoneIdentifier: endDay.timeZoneIdentifier, treatsEarlyMorningAsNextDay: false),
-            averageFreshness: average(current.map { Double($0.freshness.rawValue) }),
+            bedTimeVariationMinutes: variation(of: sleptRecords.map(\.bedTime), timeZoneIdentifier: endDay.timeZoneIdentifier, treatsEarlyMorningAsNextDay: true),
+            wakeTimeVariationMinutes: variation(of: sleptRecords.map(\.wakeTime), timeZoneIdentifier: endDay.timeZoneIdentifier, treatsEarlyMorningAsNextDay: false),
+            averageFreshness: average(sleptRecords.map { Double($0.freshness.rawValue) }),
             snoozeRate: rate(values: current.compactMap(\.factors.snoozeCount)) { $0 > 0 },
             sleepDurationGoalRate: rate(values: current.map(\.sleepDuration)) {
                 abs($0 - settings.desiredSleepDuration) <= 30 * 60
@@ -44,6 +45,7 @@ struct WeeklyAnalysisService: Sendable {
     }
 
     func comfortableDurationEstimate(records: [SleepRecord]) -> ComfortableDurationEstimate? {
+        let records = records.filter { !$0.isAllNighter }
         guard records.count >= Self.minimumComfortEstimateRecords else { return nil }
         let minutes = records.map { Int($0.sleepDuration / 60) }.sorted()
         let q1 = percentile(minutes, 0.25)

@@ -55,6 +55,30 @@ final class MVPGoalsSettingsSafetyTests: XCTestCase {
         XCTAssertEqual(goal.progress, 2.0 / 3.0, accuracy: 0.001)
     }
 
+    func testInitialPartialWeekRollsOverOnNextMonday() throws {
+        let service = WeeklyGoalProgressService()
+        let downloadedDay = try SleepDay(
+            year: 2026, month: 7, day: 15, timeZoneIdentifier: "Asia/Tokyo"
+        )
+
+        XCTAssertEqual(try service.nextMonday(after: downloadedDay).key, "2026-07-20")
+        XCTAssertEqual(
+            try service.mondayStart(
+                containing: TestFixtures.date(2026, 7, 22, 12, 0),
+                timeZone: TestFixtures.tokyo
+            ).key,
+            "2026-07-20"
+        )
+    }
+
+    func testPreferencesDecodeBeforeWeeklyGoalConfigurationTimestamp() throws {
+        let decoded = try JSONDecoder().decode(AppPreferenceData.self, from: Data("{}".utf8))
+
+        XCTAssertNil(decoded.weeklyGoalFirstConfiguredAt)
+        XCTAssertTrue(decoded.rewardedWeeklyGoalIDs.isEmpty)
+        XCTAssertEqual(decoded.alarmSound, .system)
+    }
+
     func testWeeklyGoalRewardIDsRemainUniqueAfterPersistence() throws {
         let suiteName = "NemuChartTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!

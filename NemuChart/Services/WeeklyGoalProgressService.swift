@@ -1,6 +1,26 @@
 import Foundation
 
 struct WeeklyGoalProgressService: Sendable {
+    func mondayStart(containing date: Date, timeZone: TimeZone = .current) throws -> SleepDay {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+        let weekday = calendar.component(.weekday, from: date)
+        let offset = (weekday - WeekStart.monday.rawValue + 7) % 7
+        let start = calendar.date(byAdding: .day, value: -offset, to: date)!
+        return try DateTimeService().sleepDay(for: start, timeZoneIdentifier: timeZone.identifier)
+    }
+
+    func nextMonday(after start: SleepDay) throws -> SleepDay {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: start.timeZoneIdentifier) ?? .current
+        let date = calendar.date(from: DateComponents(year: start.year, month: start.month, day: start.day))!
+        let weekday = calendar.component(.weekday, from: date)
+        let days = ((WeekStart.monday.rawValue - weekday + 7) % 7)
+        let offset = days == 0 ? 7 : days
+        let next = calendar.date(byAdding: .day, value: offset, to: date)!
+        return try DateTimeService().sleepDay(for: next, timeZoneIdentifier: start.timeZoneIdentifier)
+    }
+
     func weekStart(containing date: Date, settings: UserSettings, timeZone: TimeZone = .current) throws -> SleepDay {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = timeZone
@@ -26,12 +46,15 @@ struct WeeklyGoalProgressService: Sendable {
             switch kind {
             case .recordSleep: return true
             case .meetWakeTime:
+                guard !record.isAllNighter else { return false }
                 return circularDifference(minutes(record.wakeTime, timeZone: weekStart.timeZoneIdentifier), settings.standardWakeTime.minutesSinceMidnight) <= 30
             case .meetSleepDuration:
                 return abs(record.sleepDuration - settings.desiredSleepDuration) <= 30 * 60
             case .endSmartphone:
+                guard !record.isAllNighter else { return false }
                 return record.factors.smartphoneEndTime.map { $0 <= record.bedTime } ?? false
             case .meetBedtime:
+                guard !record.isAllNighter else { return false }
                 guard let latestGoal else { return false }
                 return circularDifference(minutes(record.bedTime, timeZone: weekStart.timeZoneIdentifier), latestGoal.targetBedTime.minutesSinceMidnight) <= 30
             }
@@ -42,8 +65,10 @@ struct WeeklyGoalProgressService: Sendable {
     func remainingDays(weekStart: SleepDay, now: Date = Date()) -> Int {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: weekStart.timeZoneIdentifier) ?? .current
-        let start = calendar.date(from: DateComponents(year: weekStart.year, month: weekStart.month, day: weekStart.day))!
-        let end = calendar.date(byAdding: .day, value: 7, to: start)!
+        let next = try? nextMonday(after: weekStart)
+        let end = next.flatMap {
+            calendar.date(from: DateComponents(year: $0.year, month: $0.month, day: $0.day))
+        } ?? now
         return max(0, calendar.dateComponents([.day], from: calendar.startOfDay(for: now), to: end).day ?? 0)
     }
 

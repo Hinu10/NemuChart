@@ -1,6 +1,7 @@
 import Foundation
 
 struct SleepFactors: Codable, Equatable, Sendable {
+    var isAllNighter: Bool?
     var awakeningCount: Int?
     var snoozeCount: Int?
     var secondSleepMinutes: Int?
@@ -14,6 +15,7 @@ struct SleepFactors: Codable, Equatable, Sendable {
     var reportedBreathingPause: Bool?
 
     init(
+        isAllNighter: Bool? = nil,
         awakeningCount: Int? = nil,
         snoozeCount: Int? = nil,
         secondSleepMinutes: Int? = nil,
@@ -37,6 +39,7 @@ struct SleepFactors: Codable, Equatable, Sendable {
             throw SleepRecordValidationError.factorOutOfRange
         }
 
+        self.isAllNighter = isAllNighter
         self.awakeningCount = awakeningCount
         self.snoozeCount = snoozeCount
         self.secondSleepMinutes = secondSleepMinutes
@@ -74,10 +77,12 @@ struct SleepRecord: Identifiable, Codable, Equatable, Sendable {
         updatedAt: Date = Date(),
         dateTimeService: any DateTimeServiceProtocol = DateTimeService()
     ) throws {
-        guard bedTime <= sleepStart else {
+        guard factors.isAllNighter == true || bedTime <= sleepStart else {
             throw SleepRecordValidationError.sleepBeforeBed
         }
-        _ = try dateTimeService.sleepDuration(from: sleepStart, to: wakeTime)
+        if factors.isAllNighter != true {
+            _ = try dateTimeService.sleepDuration(from: sleepStart, to: wakeTime)
+        }
         let derivedDay = try dateTimeService.sleepDay(
             for: wakeTime,
             timeZoneIdentifier: sleepDay.timeZoneIdentifier
@@ -100,7 +105,8 @@ struct SleepRecord: Identifiable, Codable, Equatable, Sendable {
         self.updatedAt = updatedAt
     }
 
-    var sleepDuration: TimeInterval { wakeTime.timeIntervalSince(sleepStart) }
+    var isAllNighter: Bool { factors.isAllNighter == true }
+    var sleepDuration: TimeInterval { isAllNighter ? 0 : wakeTime.timeIntervalSince(sleepStart) }
 }
 
 enum SleepRecordValidationError: Error, Equatable, LocalizedError {

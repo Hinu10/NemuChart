@@ -27,8 +27,15 @@ struct RecordHistoryView: View {
                         } label: {
                             VStack(alignment: .leading, spacing: 6) {
                                 Text(record.sleepDay.key).font(.headline)
-                                Text("\(durationText(record.sleepDuration)) ・ \(record.freshness.displayName)")
-                                    .font(.subheadline).foregroundStyle(.secondary)
+                                if record.isAllNighter {
+                                    Text("徹夜 ・ 睡眠時間 0時間")
+                                        .font(.subheadline).foregroundStyle(.secondary)
+                                } else {
+                                    Text("睡眠 \(timeRangeText(record))")
+                                        .font(.subheadline).bold()
+                                    Text("\(durationText(record.sleepDuration)) ・ \(record.freshness.displayName)")
+                                        .font(.subheadline).foregroundStyle(.secondary)
+                                }
                             }
                         }
                         .buttonStyle(.plain)
@@ -85,5 +92,18 @@ struct RecordHistoryView: View {
     private func durationText(_ interval: TimeInterval) -> String {
         let minutes = Int(interval / 60)
         return "\(minutes / 60)時間\(minutes % 60)分"
+    }
+
+    private func timeRangeText(_ record: SleepRecord) -> String {
+        let timeZone = TimeZone(identifier: record.sleepDay.timeZoneIdentifier) ?? .current
+        let formatter = DateFormatter()
+        formatter.locale = .current
+        formatter.timeZone = timeZone
+        formatter.dateStyle = .none
+        formatter.timeStyle = .short
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+        let crossesDay = !calendar.isDate(record.sleepStart, inSameDayAs: record.wakeTime)
+        return "\(formatter.string(from: record.sleepStart))〜\(crossesDay ? "翌" : "")\(formatter.string(from: record.wakeTime))"
     }
 }

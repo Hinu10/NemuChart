@@ -106,52 +106,68 @@ struct SleepRecordFlow: View {
 
     private var form: some View {
         Form {
-            Section("必須項目（4項目）") {
-                DatePicker("起床日時", selection: $draft.wakeTime)
-                DatePicker("ベッド時刻", selection: $draft.bedClock, displayedComponents: .hourAndMinute)
-                Picker("入眠の入力方法", selection: $draft.sleepStartInputMode) {
-                    Text("入眠時刻").tag(SleepStartInputMode.clockTime)
-                    Text("入眠までの時間").tag(SleepStartInputMode.latency)
+            Section("記録の種類") {
+                Picker("記録の種類", selection: $draft.inputKind) {
+                    Text("睡眠した").tag(SleepRecordInputKind.slept)
+                    Text("徹夜した").tag(SleepRecordInputKind.allNighter)
                 }
                 .pickerStyle(.segmented)
-                if draft.sleepStartInputMode == .clockTime {
-                    DatePicker("入眠時刻", selection: $draft.sleepClock, displayedComponents: .hourAndMinute)
-                } else {
-                    Stepper("入眠まで \(draft.latencyMinutes)分", value: $draft.latencyMinutes, in: 0...240, step: 5)
-                }
-                Picker("起床時のスッキリ度", selection: $draft.freshness) {
-                    ForEach(Freshness.allCases, id: \.self) { value in
-                        Text(value.displayName).tag(value)
-                    }
+                if draft.inputKind == .allNighter {
+                    DatePicker("対象日", selection: $draft.wakeTime, displayedComponents: .date)
+                    Text("睡眠なしとして0時間で記録します。架空の時刻入力は必要ありません。")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
                 }
             }
 
-            Section {
-                DisclosureGroup("任意の睡眠詳細・生活要因", isExpanded: $optionalExpanded) {
-                    OptionalIntPicker(title: "中途覚醒", value: $draft.awakeningCount, range: 0...10, unit: "回")
-                    OptionalIntPicker(title: "スヌーズ", value: $draft.snoozeCount, range: 0...10, unit: "回")
-                    OptionalIntPicker(title: "二度寝", value: $draft.secondSleepMinutes, values: [0, 10, 20, 30, 45, 60, 90, 120], unit: "分")
-                    OptionalIntPicker(title: "昼寝", value: $draft.napMinutes, values: [0, 10, 20, 30, 45, 60, 90, 120], unit: "分")
-                    OptionalBoolPicker(title: "飲酒", value: $draft.consumedAlcohol, trueLabel: "あり", falseLabel: "なし")
-                    OptionalBoolPicker(title: "カフェイン", value: $draft.consumedCaffeine, trueLabel: "摂取した", falseLabel: "摂取していない")
-                    Toggle("スマートフォン終了時刻を記録", isOn: Binding(
-                        get: { draft.smartphoneEndTime != nil },
-                        set: { draft.smartphoneEndTime = $0 ? Date() : nil }
-                    ))
-                    if draft.smartphoneEndTime != nil {
-                        DatePicker("終了時刻", selection: Binding(
-                            get: { draft.smartphoneEndTime ?? Date() },
-                            set: { draft.smartphoneEndTime = $0 }
-                        ), displayedComponents: .hourAndMinute)
+            if draft.inputKind == .slept {
+                Section("必須項目（4項目）") {
+                    DatePicker("起床日時", selection: $draft.wakeTime)
+                    DatePicker("ベッド時刻", selection: $draft.bedClock, displayedComponents: .hourAndMinute)
+                    Picker("入眠の入力方法", selection: $draft.sleepStartInputMode) {
+                        Text("入眠時刻").tag(SleepStartInputMode.clockTime)
+                        Text("入眠までの時間").tag(SleepStartInputMode.latency)
                     }
-                    OptionalRatingPicker(title: "ストレス", value: $draft.stress)
-                    OptionalRatingPicker(title: "快適さ", value: $draft.comfort)
-                    OptionalBoolPicker(title: "いびきの指摘", value: $draft.reportedSnoring, trueLabel: "指摘あり", falseLabel: "なし")
-                    OptionalBoolPicker(title: "呼吸が止まったとの指摘", value: $draft.reportedBreathingPause, trueLabel: "指摘あり", falseLabel: "なし")
+                    .pickerStyle(.segmented)
+                    if draft.sleepStartInputMode == .clockTime {
+                        DatePicker("入眠時刻", selection: $draft.sleepClock, displayedComponents: .hourAndMinute)
+                    } else {
+                        Stepper("入眠まで \(draft.latencyMinutes)分", value: $draft.latencyMinutes, in: 0...240, step: 5)
+                    }
+                    Picker("起床時のスッキリ度", selection: $draft.freshness) {
+                        ForEach(Freshness.allCases, id: \.self) { value in
+                            Text(value.displayName).tag(value)
+                        }
+                    }
                 }
-                Text("任意項目は空欄のままで構いません。「未入力」と「なし／0回」は区別して保存されます。")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+
+                Section {
+                    DisclosureGroup("任意の睡眠詳細・生活要因", isExpanded: $optionalExpanded) {
+                        OptionalIntPicker(title: "中途覚醒", value: $draft.awakeningCount, range: 0...10, unit: "回")
+                        OptionalIntPicker(title: "スヌーズ", value: $draft.snoozeCount, range: 0...10, unit: "回")
+                        OptionalIntPicker(title: "二度寝", value: $draft.secondSleepMinutes, values: [0, 10, 20, 30, 45, 60, 90, 120], unit: "分")
+                        OptionalIntPicker(title: "昼寝", value: $draft.napMinutes, values: [0, 10, 20, 30, 45, 60, 90, 120], unit: "分")
+                        OptionalBoolPicker(title: "飲酒", value: $draft.consumedAlcohol, trueLabel: "あり", falseLabel: "なし")
+                        OptionalBoolPicker(title: "カフェイン", value: $draft.consumedCaffeine, trueLabel: "摂取した", falseLabel: "摂取していない")
+                        Toggle("スマートフォン終了時刻を記録", isOn: Binding(
+                            get: { draft.smartphoneEndTime != nil },
+                            set: { draft.smartphoneEndTime = $0 ? Date() : nil }
+                        ))
+                        if draft.smartphoneEndTime != nil {
+                            DatePicker("終了時刻", selection: Binding(
+                                get: { draft.smartphoneEndTime ?? Date() },
+                                set: { draft.smartphoneEndTime = $0 }
+                            ), displayedComponents: .hourAndMinute)
+                        }
+                        OptionalRatingPicker(title: "ストレス", value: $draft.stress)
+                        OptionalRatingPicker(title: "快適さ", value: $draft.comfort)
+                        OptionalBoolPicker(title: "いびきの指摘", value: $draft.reportedSnoring, trueLabel: "指摘あり", falseLabel: "なし")
+                        OptionalBoolPicker(title: "呼吸が止まったとの指摘", value: $draft.reportedBreathingPause, trueLabel: "指摘あり", falseLabel: "なし")
+                    }
+                    Text("任意項目は空欄のままで構いません。「未入力」と「なし／0回」は区別して保存されます。")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
             }
 
             Section {
@@ -168,14 +184,21 @@ struct SleepRecordFlow: View {
                 if let record = pendingRecord {
                     GroupBox("基本情報") {
                         LabeledContent("睡眠日", value: record.sleepDay.key)
-                        LabeledContent("ベッド", value: record.bedTime.formatted(date: .omitted, time: .shortened))
-                        LabeledContent("入眠", value: record.sleepStart.formatted(date: .omitted, time: .shortened))
-                        LabeledContent("起床", value: record.wakeTime.formatted(date: .omitted, time: .shortened))
-                        LabeledContent("睡眠時間", value: durationText(record.sleepDuration))
-                        LabeledContent("スッキリ度", value: record.freshness.displayName)
+                        if record.isAllNighter {
+                            LabeledContent("記録", value: "徹夜（睡眠なし）")
+                            LabeledContent("睡眠時間", value: "0時間")
+                        } else {
+                            LabeledContent("ベッド", value: record.bedTime.formatted(date: .omitted, time: .shortened))
+                            LabeledContent("入眠", value: record.sleepStart.formatted(date: .omitted, time: .shortened))
+                            LabeledContent("起床", value: record.wakeTime.formatted(date: .omitted, time: .shortened))
+                            LabeledContent("睡眠時間", value: durationText(record.sleepDuration))
+                            LabeledContent("スッキリ度", value: record.freshness.displayName)
+                        }
                     }
-                    Text("時刻の順序や睡眠時間を確認してください。極端な値は自動補正せず、前の画面で修正できます。")
-                        .font(.footnote).foregroundStyle(.secondary)
+                    if !record.isAllNighter {
+                        Text("時刻の順序や睡眠時間を確認してください。極端な値は自動補正せず、前の画面で修正できます。")
+                            .font(.footnote).foregroundStyle(.secondary)
+                    }
                     Button("保存する") { save(record) }
                         .buttonStyle(.borderedProminent)
                         .controlSize(.large)

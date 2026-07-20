@@ -18,6 +18,7 @@ struct WeeklyDashboardView: View {
                     ScrollView {
                         VStack(alignment: .leading, spacing: 20) {
                             scoreHeader(metrics)
+                            dailyScores(metrics)
                             sleepChart(metrics)
                             metricGrid(metrics)
                             confidenceCard(metrics.confidence)
@@ -82,6 +83,25 @@ struct WeeklyDashboardView: View {
         }
     }
 
+    private func dailyScores(_ metrics: WeeklyMetrics) -> some View {
+        let days = chartDays(metrics)
+        return GroupBox("日付ごとのスコア") {
+            VStack(spacing: 10) {
+                ForEach(days) { day in
+                    HStack {
+                        Text(day.dateLabel)
+                        Spacer()
+                        Text(day.score.map { "\($0)点" } ?? "未記録")
+                            .bold(day.score != nil)
+                            .foregroundStyle(day.score == nil ? .secondary : .primary)
+                    }
+                    if day.id != days.last?.id { Divider() }
+                }
+            }
+        }
+        .accessibilityElement(children: .contain)
+    }
+
     private func metricGrid(_ metrics: WeeklyMetrics) -> some View {
         VStack(spacing: 12) {
             metric("平均睡眠時間", metrics.averageSleepDuration.map(durationText) ?? "—")
@@ -144,7 +164,15 @@ struct WeeklyDashboardView: View {
             let date = calendar.date(byAdding: .day, value: offset, to: end)!
             let c = calendar.dateComponents([.year, .month, .day], from: date)
             let key = String(format: "%04d-%02d-%02d", c.year!, c.month!, c.day!)
-            return ChartDay(key: key, label: date.formatted(.dateTime.weekday(.narrow)), hours: metrics.recordsByDay[key].map { $0.sleepDuration / 3600 })
+            let record = metrics.recordsByDay[key]
+            let score = record.flatMap { try? scoringService.score(record: $0, settings: settings).total }
+            return ChartDay(
+                key: key,
+                label: date.formatted(.dateTime.weekday(.narrow)),
+                dateLabel: date.formatted(.dateTime.month().day().weekday(.abbreviated)),
+                hours: record.map { $0.sleepDuration / 3600 },
+                score: score
+            )
         }
     }
 
@@ -159,7 +187,9 @@ private struct ChartDay: Identifiable {
     var id: String { key }
     let key: String
     let label: String
+    let dateLabel: String
     let hours: Double?
+    let score: Int?
 }
 
 extension AnalysisConfidence {

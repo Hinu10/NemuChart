@@ -69,6 +69,34 @@ final class MVPFeaturesTests: XCTestCase {
         XCTAssertEqual(record.factors.smartphoneEndTime, TestFixtures.date(2026, 7, 13, 22, 30))
     }
 
+    func testAllNighterDraftCreatesZeroDurationRecordAndZeroScore() throws {
+        var draft = SleepRecordDraft(now: TestFixtures.date(2026, 7, 14, 7, 0))
+        draft.inputKind = .allNighter
+        draft.wakeTime = TestFixtures.date(2026, 7, 14, 7, 0)
+
+        let record = try draft.makeRecord(
+            now: TestFixtures.date(2026, 7, 14, 8, 0),
+            timeZone: TestFixtures.tokyo
+        )
+        let settings = try UserSettings(
+            desiredSleepDuration: 8 * 3600,
+            standardWakeTime: LocalTime(hour: 7, minute: 0)!
+        )
+        let score = try DailyScoreCalculator().score(record: record, settings: settings)
+
+        XCTAssertTrue(record.isAllNighter)
+        XCTAssertEqual(record.sleepDuration, 0)
+        XCTAssertEqual(record.freshness, .veryTired)
+        XCTAssertEqual(score.total, 0)
+        XCTAssertEqual(score.components.reduce(0) { $0 + $1.possiblePoints }, 100)
+    }
+
+    func testLegacySleepFactorsDecodeWithoutAllNighterField() throws {
+        let factors = try JSONDecoder().decode(SleepFactors.self, from: Data("{}".utf8))
+        XCTAssertNil(factors.isAllNighter)
+        XCTAssertFalse(factors.isAllNighter == true)
+    }
+
     func testPerfectDailyScoreIs100() throws {
         let factors = try SleepFactors(awakeningCount: 0)
         let day = try SleepDay(year: 2026, month: 7, day: 14, timeZoneIdentifier: "Asia/Tokyo")

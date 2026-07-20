@@ -4,6 +4,18 @@ struct DailyScoreCalculator: ScoringServiceProtocol {
     static let ruleVersion = "1.0.0"
 
     func score(record: SleepRecord, settings: UserSettings) throws -> DailySleepScore {
+        if record.isAllNighter {
+            return try DailySleepScore(
+                sleepDay: record.sleepDay,
+                total: 0,
+                components: [
+                    try ScoreComponent(kind: .duration, points: 0, possiblePoints: 44),
+                    try ScoreComponent(kind: .timing, points: 0, possiblePoints: 28),
+                    try ScoreComponent(kind: .freshness, points: 0, possiblePoints: 28)
+                ],
+                ruleVersion: Self.ruleVersion
+            )
+        }
         let hasContinuity = record.factors.awakeningCount != nil
         let weights: [(ScoreComponent.Kind, Int)] = hasContinuity
             ? [(.duration, 40), (.timing, 25), (.freshness, 25), (.continuity, 10)]

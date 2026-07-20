@@ -13,7 +13,7 @@ struct FutureFeaturesView: View {
                 NavigationLink("生活要因の傾向") {
                     LifestyleInsightsView(dependencies: dependencies)
                 }
-                NavigationLink("長期レポート") {
+                NavigationLink("1か月分析（プレミアム）") {
                     LongTermReportsView(dependencies: dependencies)
                 }
             }
@@ -161,41 +161,73 @@ private struct LifestyleInsightsView: View {
 
 private struct LongTermReportsView: View {
     let dependencies: AppDependencies
+    @ObservedObject private var premium: PremiumEntitlementService
     @State private var days = 30
     @State private var report: LongTermReport?
     @State private var recordCount = 0
+    @State private var errorMessage: String?
+
+    init(dependencies: AppDependencies) {
+        self.dependencies = dependencies
+        premium = dependencies.premiumEntitlementService
+    }
 
     var body: some View {
         List {
-            Picker("期間", selection: $days) {
-                Text("30日").tag(30)
-                Text("90日").tag(90)
-            }
-            .pickerStyle(.segmented)
-            .onChange(of: days) { _, _ in load() }
-            if let report {
-                Section("月別") { ForEach(report.monthly) { bucketRow($0) } }
-                Section("曜日別") { ForEach(report.weekdays) { bucketRow($0) } }
-                Section("平日と週末") {
-                    LabeledContent("平日のスッキリ度", value: value(report.weekdayFreshness))
-                    LabeledContent("週末のスッキリ度", value: value(report.weekendFreshness))
+            if premium.hasPremiumAccess {
+                Picker("期間", selection: $days) {
+                    Text("30日").tag(30)
+                    Text("90日").tag(90)
                 }
-                if report.timeZoneCount > 1 {
-                    Text("複数のタイムゾーンの記録を含みます。各睡眠日の現地時刻で曜日を集計しています。")
-                        .font(.footnote).foregroundStyle(.secondary)
+                .pickerStyle(.segmented)
+                .onChange(of: days) { _, _ in load() }
+                if let report {
+                    Section("月別") { ForEach(report.monthly) { bucketRow($0) } }
+                    Section("曜日別") { ForEach(report.weekdays) { bucketRow($0) } }
+                    Section("平日と週末") {
+                        LabeledContent("平日のスッキリ度", value: value(report.weekdayFreshness))
+                        LabeledContent("週末のスッキリ度", value: value(report.weekendFreshness))
+                    }
+                    if report.timeZoneCount > 1 {
+                        Text("複数のタイムゾーンの記録を含みます。各睡眠日の現地時刻で曜日を集計しています。")
+                            .font(.footnote).foregroundStyle(.secondary)
+                    }
+                } else {
+                    ContentUnavailableView(
+                        "長期レポートは準備中",
+                        systemImage: "calendar.badge.clock",
+                        description: Text("選択期間内に\(LongTermReportService.minimumRecords)件以上必要です。全記録は\(recordCount)件です。")
+                    )
                 }
             } else {
-                ContentUnavailableView(
-                    "長期レポートは準備中",
-                    systemImage: "calendar.badge.clock",
-                    description: Text("選択期間内に\(LongTermReportService.minimumRecords)件以上必要です。全記録は\(recordCount)件です。")
-                )
+                Section("プレミアム機能") {
+                    Label("1か月分析", systemImage: "lock.fill")
+                        .font(.headline)
+                    Text("7日間分析と日付ごとのスコアは無料です。月間・曜日別・平日休日分析はプレミアムで利用できます。")
+                    if let product = premium.product {
+                        Button("\(product.displayPrice)で利用する") { Task { await purchase() } }
+                            .buttonStyle(.borderedProminent)
+                    } else if premium.isLoading {
+                        ProgressView("購入情報を確認しています")
+                    } else {
+                        Text("購入情報を取得できませんでした。")
+                            .foregroundStyle(.secondary)
+                    }
+                    Button("購入を復元") { Task { await restore() } }
+                }
             }
             Section { Text("欠損日は0として扱いません。集計は参考値で、生活要因との因果関係を示しません。")
                 .font(.footnote).foregroundStyle(.secondary) }
         }
         .navigationTitle("長期レポート")
-        .task { load() }
+        .task {
+            await premium.refresh()
+            if premium.hasPremiumAccess { load() }
+        }
+        .onChange(of: premium.hasPremiumAccess) { _, enabled in if enabled { load() } }
+        .alert("購入を完了できませんでした", isPresented: Binding(
+            get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } }
+        )) { Button("OK", role: .cancel) {} } message: { Text(errorMessage ?? "") }
     }
 
     @ViewBuilder private func bucketRow(_ bucket: LongTermBucket) -> some View {
@@ -208,9 +240,18 @@ private struct LongTermReportsView: View {
     private func value(_ value: Double?) -> String { value.map { String(format: "%.2f", $0) } ?? "データ不足" }
     private func duration(_ value: TimeInterval) -> String { "\(Int(value / 3600))時間\(Int(value / 60) % 60)分" }
     private func load() {
+        guard premium.hasPremiumAccess else { report = nil; return }
         let records = (try? dependencies.sleepRecordRepository.records()) ?? []
         recordCount = records.count
         report = dependencies.longTermReportService.report(records: records, days: days)
+    }
+    private func purchase() async {
+        do { try await premium.purchase() }
+        catch { errorMessage = error.localizedDescription }
+    }
+    private func restore() async {
+        do { try await premium.restore() }
+        catch { errorMessage = error.localizedDescription }
     }
 }
 

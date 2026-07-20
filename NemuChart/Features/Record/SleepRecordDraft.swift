@@ -7,7 +7,15 @@ enum SleepStartInputMode: String, CaseIterable, Identifiable {
     var id: Self { self }
 }
 
+enum SleepRecordInputKind: String, CaseIterable, Identifiable {
+    case slept
+    case allNighter
+
+    var id: Self { self }
+}
+
 struct SleepRecordDraft {
+    var inputKind: SleepRecordInputKind = .slept
     var wakeTime: Date
     var bedClock: Date
     var sleepClock: Date
@@ -37,6 +45,7 @@ struct SleepRecordDraft {
     }
 
     init(record: SleepRecord) {
+        inputKind = record.isAllNighter ? .allNighter : .slept
         wakeTime = record.wakeTime
         bedClock = record.bedTime
         sleepClock = record.sleepStart
@@ -71,6 +80,21 @@ struct SleepRecordDraft {
             timeZoneIdentifier: timeZone.identifier
         )
         let wake = try Self.date(matchingClock: wakeTime, on: day, calendar: calendar)
+        if inputKind == .allNighter {
+            let factors = try SleepFactors(isAllNighter: true)
+            return try SleepRecord(
+                id: id,
+                sleepDay: day,
+                bedTime: wake,
+                sleepStart: wake,
+                wakeTime: wake,
+                freshness: .veryTired,
+                factors: factors,
+                createdAt: createdAt,
+                updatedAt: now,
+                dateTimeService: dateTimeService
+            )
+        }
         var bed = try Self.date(matchingClock: bedClock, on: day, calendar: calendar)
         if bed >= wake { bed = calendar.date(byAdding: .day, value: -1, to: bed)! }
 
@@ -95,6 +119,7 @@ struct SleepRecordDraft {
             normalizedSmartphoneEndTime = candidate
         }
         let factors = try SleepFactors(
+            isAllNighter: false,
             awakeningCount: awakeningCount,
             snoozeCount: snoozeCount,
             secondSleepMinutes: secondSleepMinutes,

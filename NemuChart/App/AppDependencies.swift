@@ -21,6 +21,7 @@ final class AppDependencies {
     let lifestyleAssociationService: LifestyleAssociationService
     let longTermReportService: LongTermReportService
     let exportService: SleepDataExportService
+    let premiumEntitlementService: PremiumEntitlementService
 
     init(modelContainer: ModelContainer) {
         self.modelContainer = modelContainer
@@ -43,6 +44,7 @@ final class AppDependencies {
         lifestyleAssociationService = LifestyleAssociationService()
         longTermReportService = LongTermReportService()
         exportService = SleepDataExportService()
+        premiumEntitlementService = PremiumEntitlementService()
     }
 
     static func live() throws -> AppDependencies {

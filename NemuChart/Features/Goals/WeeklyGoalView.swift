@@ -6,6 +6,7 @@ struct WeeklyGoalView: View {
     let preferences: AppPreferencesStore
     let progressService: WeeklyGoalProgressService
     let settings: UserSettings
+    let proposedWeekStart: SleepDay?
     @Environment(\.dismiss) private var dismiss
     @State private var kind = WeeklyGoalKind.recordSleep
     @State private var targetCount = 3
@@ -69,7 +70,7 @@ struct WeeklyGoalView: View {
     private func refresh(existing: WeeklyGoal?, shouldPersist: Bool = false) {
         do {
             let records = try repository.records()
-            let start = try progressService.weekStart(containing: Date(), settings: settings)
+            let start = try proposedWeekStart ?? progressService.mondayStart(containing: Date())
             let latestGoal = try sleepGoalRepository.goals().first
             let calculated = try progressService.progress(
                 kind: kind, targetCount: targetCount, weekStart: start,
@@ -83,6 +84,9 @@ struct WeeklyGoalView: View {
             var data = preferences.load()
             let isSelected = shouldPersist || data.weeklyGoal != nil
             if isSelected { data.weeklyGoal = updated }
+            if isSelected && data.weeklyGoalFirstConfiguredAt == nil {
+                data.weeklyGoalFirstConfiguredAt = Date()
+            }
             rewardGranted = data.rewardedWeeklyGoalIDs.contains(updated.id)
             if isSelected && updated.completedCount >= updated.targetCount && !rewardGranted {
                 data.rewardedWeeklyGoalIDs.insert(updated.id)
