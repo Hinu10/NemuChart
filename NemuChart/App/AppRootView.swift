@@ -10,7 +10,7 @@ struct AppRootView: View {
         Group {
             if !didLoad {
                 VStack(spacing: 20) {
-                    Image("NemuChartLogoCropped")
+                    Image(uiImage: UIImage(named: "NemuChartLogoCropped.jpeg") ?? UIImage())
                         .resizable()
                         .scaledToFit()
                         .frame(maxWidth: 330)

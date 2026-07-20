@@ -1,7 +1,12 @@
 import XCTest
+import UIKit
 @testable import NemuChart
 
 final class MVPFeaturesTests: XCTestCase {
+    func testLogoResourceCanBeLoaded() {
+        XCTAssertNotNil(UIImage(named: "NemuChartLogoCropped.jpeg"))
+    }
+
     func testTimeOfDayBoundaries() {
         let policy = TimeOfDayPolicy()
         XCTAssertEqual(policy.period(at: TestFixtures.date(2026, 7, 14, 3, 59), timeZone: TestFixtures.tokyo), .night)

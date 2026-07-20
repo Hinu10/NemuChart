@@ -37,7 +37,7 @@ struct HomeView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
-                    Image("NemuChartLogoCropped")
+                    Image(uiImage: UIImage(named: "NemuChartLogoCropped.jpeg") ?? UIImage())
                         .resizable()
                         .scaledToFit()
                         .frame(maxWidth: .infinity)
