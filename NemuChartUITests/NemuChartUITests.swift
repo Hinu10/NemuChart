@@ -19,6 +19,7 @@ final class NemuChartUITests: XCTestCase {
         }
 
         XCTAssertTrue(app.images["NemuChart"].exists)
+        XCTAssertTrue(app.buttons["記録する"].exists)
         XCTAssertFalse(app.buttons["時間帯にかかわらず記録する"].exists)
         XCTAssertTrue(app.buttons["7日間の分析を見る"].exists)
     }

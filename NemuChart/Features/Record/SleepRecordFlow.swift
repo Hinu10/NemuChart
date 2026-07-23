@@ -33,6 +33,7 @@ struct SleepRecordFlow: View {
         preferences: AppPreferencesStore? = nil,
         notificationService: (any LocalNotificationServiceProtocol)? = nil,
         initialRecord: SleepRecord? = nil,
+        initialDraft: SleepRecordDraft? = nil,
         onSaved: @escaping () -> Void = {}
     ) {
         self.repository = repository
@@ -43,7 +44,7 @@ struct SleepRecordFlow: View {
         self.preferences = preferences
         self.notificationService = notificationService
         self.onSaved = onSaved
-        _draft = State(initialValue: initialRecord.map(SleepRecordDraft.init(record:)) ?? SleepRecordDraft())
+        _draft = State(initialValue: initialRecord.map(SleepRecordDraft.init(record:)) ?? initialDraft ?? SleepRecordDraft())
     }
 
     var body: some View {

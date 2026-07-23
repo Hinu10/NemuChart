@@ -8,7 +8,8 @@ struct HomeView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var now = Date()
-    @State private var showingRecord = false
+    @State private var recordingRoute: HomeRecordingRoute?
+    @State private var showingRecordDayChoices = false
     @State private var showingHistory = false
     @State private var showingWeekly = false
     @State private var showingWeeklyGoal = false
@@ -46,12 +47,24 @@ struct HomeView: View {
                     greetingHeader
                     landscapeCard
                     if let safetyGuidance { safetyCard(safetyGuidance) }
+                    Button {
+                        showingRecordDayChoices = true
+                    } label: {
+                        Label("記録する", systemImage: "square.and.pencil")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
                     if period == .morning {
-                        Button(hasRecordForCurrentSleepDay ? "睡眠を追加で記録する" : "昨夜の睡眠を記録する") {
-                            showingRecord = true
+                        if hasRecordForCurrentSleepDay {
+                            Label("今日の睡眠日は記録済みです。修正は「記録する」から今日を選んでください。", systemImage: "checkmark.circle.fill")
+                                .font(.subheadline)
+                                .foregroundStyle(.green)
+                        } else {
+                            Text("前夜の睡眠を、覚えている範囲で記録しましょう。")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
                         }
-                        .buttonStyle(.borderedProminent)
-                        .controlSize(.large)
                     } else if period == .daytime || period == .evening {
                         GroupBox("今日の目安") {
                             Text(sleepDurationGuidance)
@@ -83,7 +96,13 @@ struct HomeView: View {
                 }
             }
         }
-        .sheet(isPresented: $showingRecord) {
+        .confirmationDialog("記録する日を選んでください", isPresented: $showingRecordDayChoices, titleVisibility: .visible) {
+            ForEach(recordDayChoices) { choice in
+                Button(choice.displayName) { openRecording(for: choice) }
+            }
+            Button("キャンセル", role: .cancel) {}
+        }
+        .sheet(item: $recordingRoute) { route in
             SleepRecordFlow(
                 repository: dependencies.sleepRecordRepository,
                 scoringService: dependencies.scoringService,
@@ -92,6 +111,8 @@ struct HomeView: View {
                 goalRepository: dependencies.sleepGoalRepository,
                 preferences: dependencies.preferences,
                 notificationService: dependencies.notificationService,
+                initialRecord: route.initialRecord,
+                initialDraft: route.initialDraft,
                 onSaved: loadDashboard
             )
         }
@@ -244,6 +265,7 @@ struct HomeView: View {
     private var sheepRotation: Double { vitality == .resting ? 4.0 : vitality == .radiant ? 1.5 : 0.5 }
     private var sheepOffset: CGFloat { vitality == .resting ? 7 : vitality == .radiant ? -10 : vitality == .lively ? -4 : 1 }
     private var sheepAnimationDuration: Double { vitality == .radiant ? 0.7 : vitality == .resting ? 1.6 : 2.2 }
+    private var recordDayChoices: [HomeRecordDayChoice] { [.today, .yesterday, .twoDaysAgo] }
 
     private var sleepDurationGuidance: String {
         if settings.sleepDurationPreference == .inferred {
@@ -253,25 +275,56 @@ struct HomeView: View {
     }
 
     private var animatedSheep: some View {
-        ZStack {
+        ZStack(alignment: .bottom) {
+            sheepTerrain
             Image(sheepAssetName)
                 .resizable()
                 .scaledToFit()
                 .frame(height: 168)
                 .scaleEffect(reduceMotion ? 1 : (sheepAnimating ? sheepScale : 0.97))
                 .rotationEffect(.degrees(reduceMotion ? 0 : (sheepAnimating ? sheepRotation : -sheepRotation)))
-                .offset(y: reduceMotion ? 0 : (sheepAnimating ? sheepOffset : -2))
+                .offset(y: -20 + (reduceMotion ? 0 : (sheepAnimating ? sheepOffset : -2)))
                 .animation(
                     reduceMotion ? nil : .easeInOut(duration: sheepAnimationDuration).repeatForever(autoreverses: true),
                     value: sheepAnimating
                 )
             if vitality == .resting {
                 restingEyeShadows
+                    .offset(y: -20 + (reduceMotion ? 0 : (sheepAnimating ? sheepOffset : -2)))
             } else if vitality == .radiant || vitality == .lively {
                 sleepingMarks
             }
         }
+        .frame(height: 232)
         .accessibilityLabel("羊は\(vitality.displayName)状態です")
+    }
+
+    private var sheepTerrain: some View {
+        ZStack(alignment: .bottom) {
+            MountainShape()
+                .fill(.teal.opacity(0.28))
+                .frame(width: 250, height: 96)
+                .offset(x: -78, y: -54)
+            MountainShape()
+                .fill(.mint.opacity(0.34))
+                .frame(width: 210, height: 82)
+                .offset(x: 86, y: -44)
+            Ellipse()
+                .fill(
+                    LinearGradient(
+                        colors: [.green.opacity(0.74), .mint.opacity(0.6), .cyan.opacity(0.35)],
+                        startPoint: .bottom,
+                        endPoint: .top
+                    )
+                )
+                .frame(width: 360, height: 112)
+                .offset(y: 36)
+            Ellipse()
+                .fill(.white.opacity(0.18))
+                .frame(width: 190, height: 36)
+                .offset(y: 2)
+        }
+        .accessibilityHidden(true)
     }
 
     private var sleepingMarks: some View {
@@ -422,6 +475,54 @@ struct HomeView: View {
         let minutes = Int(interval / 60)
         return minutes % 60 == 0 ? "\(minutes / 60)時間" : "\(minutes / 60)時間\(minutes % 60)分"
     }
+
+    private func openRecording(for choice: HomeRecordDayChoice) {
+        do {
+            let sleepDay = try sleepDay(for: choice)
+            if let existing = latestRecord(for: sleepDay) {
+                recordingRoute = HomeRecordingRoute(initialRecord: existing)
+            } else {
+                recordingRoute = HomeRecordingRoute(initialDraft: try draft(for: sleepDay))
+            }
+        } catch {
+            loadError = error.localizedDescription
+        }
+    }
+
+    private func latestRecord(for sleepDay: SleepDay) -> SleepRecord? {
+        records
+            .filter { $0.sleepDay.key == sleepDay.key }
+            .sorted { $0.updatedAt > $1.updatedAt }
+            .first
+    }
+
+    private func sleepDay(for choice: HomeRecordDayChoice) throws -> SleepDay {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = .current
+        guard let date = calendar.date(byAdding: .day, value: -choice.daysAgo, to: now) else {
+            throw DateTimeError.invalidDateComponents
+        }
+        let parts = calendar.dateComponents([.year, .month, .day], from: date)
+        guard let year = parts.year, let month = parts.month, let day = parts.day else {
+            throw DateTimeError.invalidDateComponents
+        }
+        return try SleepDay(year: year, month: month, day: day, timeZoneIdentifier: TimeZone.current.identifier)
+    }
+
+    private func draft(for sleepDay: SleepDay) throws -> SleepRecordDraft {
+        let service = DateTimeService()
+        let targetWake = try service.date(on: sleepDay, localTime: settings.standardWakeTime, dayOffset: 0)
+        let wake = min(targetWake, now)
+        let latency = settings.averageSleepLatencyMinutes ?? 20
+        let sleepStart = wake.addingTimeInterval(-settings.desiredSleepDuration)
+        var draft = SleepRecordDraft(now: wake)
+        draft.wakeTime = wake
+        draft.sleepClock = sleepStart
+        draft.bedClock = sleepStart.addingTimeInterval(TimeInterval(-latency * 60))
+        draft.sleepStartInputMode = .latency
+        draft.latencyMinutes = latency
+        return draft
+    }
 }
 
 #Preview {
@@ -520,5 +621,39 @@ private extension HomeTimeOfDay {
             startPoint: .leading,
             endPoint: .trailing
         )
+    }
+}
+
+private struct HomeRecordingRoute: Identifiable {
+    let id = UUID()
+    var initialRecord: SleepRecord?
+    var initialDraft: SleepRecordDraft?
+}
+
+private enum HomeRecordDayChoice: Int, CaseIterable, Identifiable {
+    case today
+    case yesterday
+    case twoDaysAgo
+
+    var id: Self { self }
+    var daysAgo: Int { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .today: "今日"
+        case .yesterday: "昨日"
+        case .twoDaysAgo: "一昨日"
+        }
+    }
+}
+
+private struct MountainShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: rect.minX, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.midX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+        path.closeSubpath()
+        return path
     }
 }
