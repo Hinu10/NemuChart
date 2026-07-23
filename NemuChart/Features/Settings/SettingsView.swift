@@ -8,6 +8,7 @@ struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
     @State private var desiredMinutes: Int
+    @State private var sleepDurationPreference: SleepDurationPreference
     @State private var wakeTime: Date
     @State private var weekStart: WeekStart
     @State private var notificationsEnabled: Bool
@@ -29,6 +30,7 @@ struct SettingsView: View {
         self.onSaved = onSaved
         self.onDeleteAll = onDeleteAll
         _desiredMinutes = State(initialValue: Int(settings.desiredSleepDuration / 60))
+        _sleepDurationPreference = State(initialValue: settings.sleepDurationPreference)
         _wakeTime = State(initialValue: Calendar.current.date(from: DateComponents(
             hour: settings.standardWakeTime.hour, minute: settings.standardWakeTime.minute
         )) ?? Date())
@@ -41,9 +43,14 @@ struct SettingsView: View {
         NavigationStack {
             Form {
                 Section("睡眠目標") {
+                    Picker("快眠の基準", selection: $sleepDurationPreference) {
+                        Text("自分で指定").tag(SleepDurationPreference.known)
+                        Text("まだわからない").tag(SleepDurationPreference.inferred)
+                    }
+                    .pickerStyle(.segmented)
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("希望睡眠時間")
-                        Picker("希望睡眠時間", selection: $desiredMinutes) {
+                        Text("快眠だと思う睡眠時間")
+                        Picker("快眠だと思う睡眠時間", selection: $desiredMinutes) {
                             ForEach(Array(stride(from: 3 * 60, through: 16 * 60, by: 15)), id: \.self) { minutes in
                                 Text(durationText(minutes)).tag(minutes)
                             }
@@ -51,6 +58,11 @@ struct SettingsView: View {
                         .pickerStyle(.wheel)
                         .frame(height: 120)
                         .accessibilityValue(durationText(desiredMinutes))
+                        if sleepDurationPreference == .inferred {
+                            Text("未確定の場合も、スコア計算ではこの時間を仮の基準として使います。記録が増えたら分析画面の傾向を見て調整できます。")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                     DatePicker("通常の起床時刻", selection: $wakeTime, displayedComponents: .hourAndMinute)
                     Picker("週の開始曜日", selection: $weekStart) {
@@ -93,6 +105,7 @@ struct SettingsView: View {
             .toolbar { Button("閉じる") { dismiss() } }
             .task { authorizationState = await dependencies.notificationService.authorizationState() }
             .onChange(of: desiredMinutes) { _, _ in scheduleSave() }
+            .onChange(of: sleepDurationPreference) { _, _ in scheduleSave() }
             .onChange(of: wakeTime) { _, _ in scheduleSave() }
             .onChange(of: weekStart) { _, _ in scheduleSave() }
             .onChange(of: notificationsEnabled) { _, enabled in
@@ -134,6 +147,7 @@ struct SettingsView: View {
                 id: settings.id,
                 hasCompletedOnboarding: true,
                 desiredSleepDuration: TimeInterval(desiredMinutes * 60),
+                sleepDurationPreference: sleepDurationPreference,
                 standardWakeTime: LocalTime(hour: parts.hour ?? 7, minute: parts.minute ?? 0)!,
                 averageSleepLatencyMinutes: settings.averageSleepLatencyMinutes,
                 weekStart: weekStart,

@@ -12,12 +12,18 @@ struct NotificationPreference: Codable, Equatable, Sendable {
     var authorizationState: NotificationAuthorizationState
 }
 
+enum SleepDurationPreference: String, Codable, CaseIterable, Sendable {
+    case known
+    case inferred
+}
+
 struct UserSettings: Identifiable, Codable, Equatable, Sendable {
     static let singletonID = UUID(uuidString: "00000000-0000-0000-0000-000000000001")!
 
     let id: UUID
     var hasCompletedOnboarding: Bool
     var desiredSleepDuration: TimeInterval
+    var sleepDurationPreference: SleepDurationPreference
     var standardWakeTime: LocalTime
     var averageSleepLatencyMinutes: Int?
     var weekStart: WeekStart
@@ -28,6 +34,7 @@ struct UserSettings: Identifiable, Codable, Equatable, Sendable {
         id: UUID = UserSettings.singletonID,
         hasCompletedOnboarding: Bool = false,
         desiredSleepDuration: TimeInterval,
+        sleepDurationPreference: SleepDurationPreference = .known,
         standardWakeTime: LocalTime,
         averageSleepLatencyMinutes: Int? = nil,
         weekStart: WeekStart = .monday,
@@ -47,6 +54,7 @@ struct UserSettings: Identifiable, Codable, Equatable, Sendable {
         self.id = id
         self.hasCompletedOnboarding = hasCompletedOnboarding
         self.desiredSleepDuration = desiredSleepDuration
+        self.sleepDurationPreference = sleepDurationPreference
         self.standardWakeTime = standardWakeTime
         self.averageSleepLatencyMinutes = averageSleepLatencyMinutes
         self.weekStart = weekStart
@@ -92,4 +100,3 @@ enum UserSettingsValidationError: Error, Equatable {
     case invalidSleepLatency
     case invalidTimestamps
 }
-

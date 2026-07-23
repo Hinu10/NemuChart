@@ -6,6 +6,7 @@ struct OnboardingView: View {
 
     @State private var page = 0
     @State private var desiredHours = 8
+    @State private var sleepDurationPreference = SleepDurationPreference.known
     @State private var wakeTime = Calendar.current.date(from: DateComponents(hour: 7)) ?? Date()
     @State private var weekStart = WeekStart.monday
     @State private var isSaving = false
@@ -58,8 +59,19 @@ struct OnboardingView: View {
 
     private var settingsForm: some View {
         Form {
-            Section("必須設定（3項目）") {
-                Stepper("希望睡眠時間：\(desiredHours)時間", value: $desiredHours, in: 3...16)
+            Section("必須設定（4項目）") {
+                Picker("快眠の基準", selection: $sleepDurationPreference) {
+                    Text("自分で選ぶ").tag(SleepDurationPreference.known)
+                    Text("まだわからない").tag(SleepDurationPreference.inferred)
+                }
+                .pickerStyle(.segmented)
+                Stepper("快眠だと思う睡眠時間：\(desiredHours)時間", value: $desiredHours, in: 3...16)
+                    .disabled(sleepDurationPreference == .inferred)
+                if sleepDurationPreference == .inferred {
+                    Text("最初は8時間を仮の基準にして、記録が増えたら分析画面で傾向を確認できます。")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
                 DatePicker("通常の起床時刻", selection: $wakeTime, displayedComponents: .hourAndMinute)
                 Picker("週の開始曜日", selection: $weekStart) {
                     Text("月曜日").tag(WeekStart.monday)
@@ -85,6 +97,7 @@ struct OnboardingView: View {
             let settings = try UserSettings(
                 hasCompletedOnboarding: true,
                 desiredSleepDuration: TimeInterval(desiredHours * 60 * 60),
+                sleepDurationPreference: sleepDurationPreference,
                 standardWakeTime: localTime,
                 weekStart: weekStart,
                 updatedAt: Date()

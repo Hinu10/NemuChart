@@ -47,17 +47,16 @@ final class SwiftDataRepositoryTests: XCTestCase {
         XCTAssertNil(try repository.record(id: original.id))
     }
 
-    func testDuplicateSleepDayReturnsExistingWithoutOverwrite() throws {
+    func testCanCreateMultipleRecordsForSameSleepDayDuringImplementation() throws {
         let existing = try TestFixtures.sleepRecord()
         _ = try repository.save(existing)
         let duplicate = try TestFixtures.sleepRecord(id: UUID(), freshness: .veryTired)
 
-        guard case .duplicate(let returned) = try repository.save(duplicate) else {
-            return XCTFail("同じ睡眠日の新規IDは重複になる必要があります")
+        guard case .created(let created) = try repository.save(duplicate) else {
+            return XCTFail("実装中は同じ睡眠日の新規IDも保存できる必要があります")
         }
-        XCTAssertEqual(returned.id, existing.id)
-        XCTAssertEqual(try repository.records().count, 1)
-        XCTAssertEqual(try repository.records().first?.freshness, existing.freshness)
+        XCTAssertEqual(created.id, duplicate.id)
+        XCTAssertEqual(try repository.records().count, 2)
     }
 
     func testCanRecreateAfterDeletion() throws {

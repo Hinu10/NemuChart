@@ -34,18 +34,9 @@ final class SwiftDataSleepRecordRepository: SleepRecordRepository {
         do {
             let stored = try entities()
             if let existingByID = stored.first(where: { $0.id == record.id }) {
-                if let duplicate = stored.first(where: {
-                    $0.sleepDayKey == record.sleepDay.key && $0.id != record.id
-                }) {
-                    return .duplicate(existing: try duplicate.domainModel())
-                }
                 try existingByID.update(from: record, at: clock.now())
                 try context.save()
                 return .updated(try existingByID.domainModel())
-            }
-
-            if let duplicate = stored.first(where: { $0.sleepDayKey == record.sleepDay.key }) {
-                return .duplicate(existing: try duplicate.domainModel())
             }
 
             let entity = try SleepRecordEntity(record: record)
@@ -174,4 +165,3 @@ final class SwiftDataSleepGoalRepository: SleepGoalRepository {
         }
     }
 }
-

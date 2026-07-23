@@ -4,7 +4,7 @@ import SwiftData
 @Model
 final class SleepRecordEntity {
     @Attribute(.unique) var id: UUID
-    @Attribute(.unique) var sleepDayKey: String
+    var sleepDayKey: String
     var sleepDayYear: Int
     var sleepDayMonth: Int
     var sleepDayDay: Int
@@ -82,6 +82,7 @@ final class UserSettingsEntity {
     @Attribute(.unique) var id: UUID
     var hasCompletedOnboarding: Bool
     var desiredSleepDuration: TimeInterval
+    var sleepDurationPreferenceRawValue: String = SleepDurationPreference.known.rawValue
     var standardWakeHour: Int
     var standardWakeMinute: Int
     var averageSleepLatencyMinutes: Int?
@@ -94,6 +95,7 @@ final class UserSettingsEntity {
         id = settings.id
         hasCompletedOnboarding = settings.hasCompletedOnboarding
         desiredSleepDuration = settings.desiredSleepDuration
+        sleepDurationPreferenceRawValue = settings.sleepDurationPreference.rawValue
         standardWakeHour = settings.standardWakeTime.hour
         standardWakeMinute = settings.standardWakeTime.minute
         averageSleepLatencyMinutes = settings.averageSleepLatencyMinutes
@@ -106,6 +108,7 @@ final class UserSettingsEntity {
     func update(from settings: UserSettings) {
         hasCompletedOnboarding = settings.hasCompletedOnboarding
         desiredSleepDuration = settings.desiredSleepDuration
+        sleepDurationPreferenceRawValue = settings.sleepDurationPreference.rawValue
         standardWakeHour = settings.standardWakeTime.hour
         standardWakeMinute = settings.standardWakeTime.minute
         averageSleepLatencyMinutes = settings.averageSleepLatencyMinutes
@@ -118,6 +121,7 @@ final class UserSettingsEntity {
     func domainModel() throws -> UserSettings {
         guard let wakeTime = LocalTime(hour: standardWakeHour, minute: standardWakeMinute),
               let weekStart = WeekStart(rawValue: weekStartRawValue),
+              let sleepDurationPreference = SleepDurationPreference(rawValue: sleepDurationPreferenceRawValue),
               let authorization = NotificationAuthorizationState(
                 rawValue: notificationAuthorizationRawValue
               ) else {
@@ -128,6 +132,7 @@ final class UserSettingsEntity {
                 id: id,
                 hasCompletedOnboarding: hasCompletedOnboarding,
                 desiredSleepDuration: desiredSleepDuration,
+                sleepDurationPreference: sleepDurationPreference,
                 standardWakeTime: wakeTime,
                 averageSleepLatencyMinutes: averageSleepLatencyMinutes,
                 weekStart: weekStart,
@@ -201,4 +206,3 @@ final class SleepGoalEntity {
         }
     }
 }
-

@@ -37,7 +37,7 @@ struct HomeView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
-                    Image(uiImage: UIImage(named: "NemuChartLogoCropped.jpeg") ?? UIImage())
+                    Image("NemuChartLogoCropped")
                         .resizable()
                         .scaledToFit()
                         .frame(maxWidth: .infinity)
@@ -47,22 +47,14 @@ struct HomeView: View {
                     landscapeCard
                     if let safetyGuidance { safetyCard(safetyGuidance) }
                     if period == .morning {
-                        if hasRecordForCurrentSleepDay {
-                            Label("昨夜の睡眠は記録済み", systemImage: "checkmark.circle.fill")
-                                .font(.headline)
-                                .foregroundStyle(.green)
-                                .padding()
-                                .frame(maxWidth: .infinity)
-                                .background(.green.opacity(0.1), in: RoundedRectangle(cornerRadius: 16))
-                                .accessibilityHint("編集は過去の記録から行えます")
-                        } else {
-                            Button("昨夜の睡眠を記録する") { showingRecord = true }
-                                .buttonStyle(.borderedProminent)
-                                .controlSize(.large)
+                        Button(hasRecordForCurrentSleepDay ? "睡眠を追加で記録する" : "昨夜の睡眠を記録する") {
+                            showingRecord = true
                         }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.large)
                     } else if period == .daytime || period == .evening {
                         GroupBox("今日の目安") {
-                            Text("希望睡眠時間は \(durationText(settings.desiredSleepDuration))です。今夜の目標は後から設定できます。")
+                            Text(sleepDurationGuidance)
                         }
                     } else {
                         Text("記録は明日の朝に。いまは端末を置いて、ゆっくり休みましょう。")
@@ -83,7 +75,7 @@ struct HomeView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding()
             }
-            .navigationTitle("NemuChart")
+            .navigationTitle("")
             .toolbar {
                 ToolbarItemGroup(placement: .topBarTrailing) {
                     Button("過去の記録", systemImage: "clock.arrow.circlepath") { showingHistory = true }
@@ -174,15 +166,7 @@ struct HomeView: View {
                 .foregroundStyle(.white)
                 .shadow(radius: 3)
                 .accessibilityHidden(true)
-                Image(sheepAssetName)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(height: 168)
-                    .scaleEffect(reduceMotion ? 1 : (sheepAnimating ? sheepScale : 0.97))
-                    .rotationEffect(.degrees(reduceMotion ? 0 : (sheepAnimating ? sheepRotation : -sheepRotation)))
-                    .offset(y: reduceMotion ? 0 : (sheepAnimating ? sheepOffset : -2))
-                    .animation(reduceMotion ? nil : .easeInOut(duration: sheepAnimationDuration).repeatForever(autoreverses: true), value: sheepAnimating)
-                    .accessibilityLabel("羊は\(vitality.displayName)状態です")
+                animatedSheep
                 ViewThatFits(in: .horizontal) {
                     HStack { sheepStateSummary; Spacer(); growthSummary }
                     VStack(alignment: .leading, spacing: 8) { sheepStateSummary; growthSummary }
@@ -257,9 +241,68 @@ struct HomeView: View {
     }
 
     private var sheepScale: CGFloat { vitality == .radiant ? 1.05 : 1.01 }
-    private var sheepRotation: Double { vitality == .resting ? 2.5 : vitality == .radiant ? 1.5 : 0.5 }
-    private var sheepOffset: CGFloat { vitality == .radiant ? -10 : vitality == .lively ? -4 : 1 }
+    private var sheepRotation: Double { vitality == .resting ? 4.0 : vitality == .radiant ? 1.5 : 0.5 }
+    private var sheepOffset: CGFloat { vitality == .resting ? 7 : vitality == .radiant ? -10 : vitality == .lively ? -4 : 1 }
     private var sheepAnimationDuration: Double { vitality == .radiant ? 0.7 : vitality == .resting ? 1.6 : 2.2 }
+
+    private var sleepDurationGuidance: String {
+        if settings.sleepDurationPreference == .inferred {
+            return "快眠の基準はまだ仮設定です。いまは \(durationText(settings.desiredSleepDuration))を目安にして、記録が増えたら分析で見直せます。"
+        }
+        return "快眠の基準は \(durationText(settings.desiredSleepDuration))です。今夜の目標は後から設定できます。"
+    }
+
+    private var animatedSheep: some View {
+        ZStack {
+            Image(sheepAssetName)
+                .resizable()
+                .scaledToFit()
+                .frame(height: 168)
+                .scaleEffect(reduceMotion ? 1 : (sheepAnimating ? sheepScale : 0.97))
+                .rotationEffect(.degrees(reduceMotion ? 0 : (sheepAnimating ? sheepRotation : -sheepRotation)))
+                .offset(y: reduceMotion ? 0 : (sheepAnimating ? sheepOffset : -2))
+                .animation(
+                    reduceMotion ? nil : .easeInOut(duration: sheepAnimationDuration).repeatForever(autoreverses: true),
+                    value: sheepAnimating
+                )
+            if vitality == .resting {
+                restingEyeShadows
+            } else if vitality == .radiant || vitality == .lively {
+                sleepingMarks
+            }
+        }
+        .accessibilityLabel("羊は\(vitality.displayName)状態です")
+    }
+
+    private var sleepingMarks: some View {
+        Text("Zzz")
+            .font(.system(.title3, design: .rounded, weight: .heavy))
+            .foregroundStyle(.white)
+            .shadow(color: .blue.opacity(0.35), radius: 4, y: 2)
+            .offset(x: 64, y: reduceMotion ? -72 : (sheepAnimating ? -84 : -68))
+            .opacity(reduceMotion ? 0.9 : (sheepAnimating ? 1 : 0.62))
+            .animation(
+                reduceMotion ? nil : .easeInOut(duration: 1.4).repeatForever(autoreverses: true),
+                value: sheepAnimating
+            )
+            .accessibilityHidden(true)
+    }
+
+    private var restingEyeShadows: some View {
+        HStack(spacing: 22) {
+            Capsule()
+                .fill(.purple.opacity(0.32))
+                .frame(width: 24, height: 8)
+                .rotationEffect(.degrees(10))
+            Capsule()
+                .fill(.purple.opacity(0.32))
+                .frame(width: 24, height: 8)
+                .rotationEffect(.degrees(-10))
+        }
+        .offset(x: -7, y: 0)
+        .blur(radius: 0.5)
+        .accessibilityHidden(true)
+    }
 
     private var landscapeTint: some View {
         LinearGradient(
