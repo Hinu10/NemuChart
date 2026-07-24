@@ -4,7 +4,7 @@ import UIKit
 
 final class MVPFeaturesTests: XCTestCase {
     func testLogoResourceCanBeLoaded() {
-        XCTAssertNotNil(UIImage(named: "NemuChartLogoCropped.jpeg"))
+        XCTAssertNotNil(UIImage(named: "NemuChartLogoCropped"))
     }
 
     func testTimeOfDayBoundaries() {
@@ -27,37 +27,46 @@ final class MVPFeaturesTests: XCTestCase {
             timeZone: TestFixtures.tokyo
         )
 
-        XCTAssertEqual(record.bedTime, TestFixtures.date(2026, 7, 13, 23, 0))
+        XCTAssertEqual(record.bedTime, TestFixtures.date(2026, 7, 13, 23, 30))
         XCTAssertEqual(record.sleepStart, TestFixtures.date(2026, 7, 13, 23, 30))
         XCTAssertEqual(record.wakeTime, TestFixtures.date(2026, 7, 14, 7, 0))
     }
 
-    func testDraftRejectsSleepBeforeBedWithoutSilentCorrection() {
+    func testDraftUsesSleepClockAsBedTime() throws {
         var draft = SleepRecordDraft(now: TestFixtures.date(2026, 7, 14, 7, 0))
         draft.wakeTime = TestFixtures.date(2026, 7, 14, 7, 0)
         draft.bedClock = TestFixtures.date(2026, 7, 14, 23, 0)
         draft.sleepClock = TestFixtures.date(2026, 7, 14, 22, 30)
 
-        XCTAssertThrowsError(try draft.makeRecord(
+        let record = try draft.makeRecord(
             now: TestFixtures.date(2026, 7, 14, 8, 0),
             timeZone: TestFixtures.tokyo
-        )) { error in
-            XCTAssertEqual(error as? SleepRecordValidationError, .sleepBeforeBed)
-        }
+        )
+
+        XCTAssertEqual(record.bedTime, TestFixtures.date(2026, 7, 13, 22, 30))
+        XCTAssertEqual(record.sleepStart, TestFixtures.date(2026, 7, 13, 22, 30))
     }
 
-    func testDraftLatencyMode() throws {
+    func testDraftDefaultsUnchangedOptionalFieldsToNoneOrZero() throws {
         var draft = SleepRecordDraft(now: TestFixtures.date(2026, 7, 14, 7, 0))
         draft.wakeTime = TestFixtures.date(2026, 7, 14, 7, 0)
-        draft.bedClock = TestFixtures.date(2026, 7, 14, 23, 0)
-        draft.sleepStartInputMode = .latency
-        draft.latencyMinutes = 25
+        draft.sleepClock = TestFixtures.date(2026, 7, 14, 23, 30)
 
         let record = try draft.makeRecord(
             now: TestFixtures.date(2026, 7, 14, 8, 0),
             timeZone: TestFixtures.tokyo
         )
-        XCTAssertEqual(record.sleepStart, TestFixtures.date(2026, 7, 13, 23, 25))
+
+        XCTAssertEqual(record.factors.awakeningCount, 0)
+        XCTAssertEqual(record.factors.snoozeCount, 0)
+        XCTAssertEqual(record.factors.secondSleepMinutes, 0)
+        XCTAssertEqual(record.factors.napMinutes, 0)
+        XCTAssertEqual(record.factors.consumedAlcohol, false)
+        XCTAssertEqual(record.factors.consumedCaffeine, false)
+        XCTAssertEqual(record.factors.stress, .medium)
+        XCTAssertEqual(record.factors.comfort, .medium)
+        XCTAssertEqual(record.factors.reportedSnoring, false)
+        XCTAssertEqual(record.factors.reportedBreathingPause, false)
     }
 
     func testDraftNormalizesSmartphoneClockToPreviousNight() throws {

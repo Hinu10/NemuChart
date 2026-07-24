@@ -122,19 +122,9 @@ struct SleepRecordFlow: View {
             }
 
             if draft.inputKind == .slept {
-                Section("必須項目（4項目）") {
+                Section("必須項目（3項目）") {
                     DatePicker("起床日時", selection: $draft.wakeTime)
-                    DatePicker("ベッド時刻", selection: $draft.bedClock, displayedComponents: .hourAndMinute)
-                    Picker("入眠の入力方法", selection: $draft.sleepStartInputMode) {
-                        Text("入眠時刻").tag(SleepStartInputMode.clockTime)
-                        Text("入眠までの時間").tag(SleepStartInputMode.latency)
-                    }
-                    .pickerStyle(.segmented)
-                    if draft.sleepStartInputMode == .clockTime {
-                        DatePicker("入眠時刻", selection: $draft.sleepClock, displayedComponents: .hourAndMinute)
-                    } else {
-                        Stepper("入眠まで \(draft.latencyMinutes)分", value: $draft.latencyMinutes, in: 0...240, step: 5)
-                    }
+                    DatePicker("寝た時刻", selection: $draft.sleepClock, displayedComponents: .hourAndMinute)
                     Picker("起床時のスッキリ度", selection: $draft.freshness) {
                         ForEach(Freshness.allCases, id: \.self) { value in
                             Text(value.displayName).tag(value)
@@ -165,7 +155,7 @@ struct SleepRecordFlow: View {
                         OptionalBoolPicker(title: "いびきの指摘", value: $draft.reportedSnoring, trueLabel: "指摘あり", falseLabel: "なし")
                         OptionalBoolPicker(title: "呼吸が止まったとの指摘", value: $draft.reportedBreathingPause, trueLabel: "指摘あり", falseLabel: "なし")
                     }
-                    Text("任意項目は空欄のままで構いません。「未入力」と「なし／0回」は区別して保存されます。")
+                    Text("何も変更しない場合は「なし」または0回／0分として保存されます。")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
@@ -292,10 +282,9 @@ private struct OptionalIntPicker: View {
 
     var body: some View {
         Picker(title, selection: Binding(
-            get: { value ?? -1 },
-            set: { value = $0 < 0 ? nil : $0 }
+            get: { value ?? 0 },
+            set: { value = $0 }
         )) {
-            Text("未入力").tag(-1)
             ForEach(values, id: \.self) { Text("\($0)\(unit)").tag($0) }
         }
     }
@@ -308,10 +297,9 @@ private struct OptionalBoolPicker: View {
     let falseLabel: String
     var body: some View {
         Picker(title, selection: Binding(
-            get: { value.map { $0 ? 1 : 0 } ?? -1 },
-            set: { value = $0 < 0 ? nil : $0 == 1 }
+            get: { value.map { $0 ? 1 : 0 } ?? 0 },
+            set: { value = $0 == 1 }
         )) {
-            Text("未入力").tag(-1)
             Text(falseLabel).tag(0)
             Text(trueLabel).tag(1)
         }
@@ -323,10 +311,9 @@ private struct OptionalRatingPicker: View {
     @Binding var value: Rating?
     var body: some View {
         Picker(title, selection: Binding(
-            get: { value?.rawValue ?? 0 },
+            get: { value?.rawValue ?? Rating.medium.rawValue },
             set: { value = Rating(rawValue: $0) }
         )) {
-            Text("未入力").tag(0)
             ForEach(Rating.allCases, id: \.self) { Text($0.displayName).tag($0.rawValue) }
         }
     }

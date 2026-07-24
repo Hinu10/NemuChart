@@ -18,6 +18,7 @@ struct SettingsView: View {
     @State private var saveStatus = ""
     @State private var saveTask: Task<Void, Never>?
     @State private var hasPendingChanges = false
+    @State private var inferredEstimate: ComfortableDurationEstimate?
 
     init(
         dependencies: AppDependencies,
@@ -48,21 +49,20 @@ struct SettingsView: View {
                         Text("まだわからない").tag(SleepDurationPreference.inferred)
                     }
                     .pickerStyle(.segmented)
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("快眠だと思う睡眠時間")
-                        Picker("快眠だと思う睡眠時間", selection: $desiredMinutes) {
-                            ForEach(Array(stride(from: 3 * 60, through: 16 * 60, by: 15)), id: \.self) { minutes in
-                                Text(durationText(minutes)).tag(minutes)
+                    if sleepDurationPreference == .known {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("快眠だと思う睡眠時間")
+                            Picker("快眠だと思う睡眠時間", selection: $desiredMinutes) {
+                                ForEach(Array(stride(from: 3 * 60, through: 16 * 60, by: 15)), id: \.self) { minutes in
+                                    Text(durationText(minutes)).tag(minutes)
+                                }
                             }
+                            .pickerStyle(.wheel)
+                            .frame(height: 120)
+                            .accessibilityValue(durationText(desiredMinutes))
                         }
-                        .pickerStyle(.wheel)
-                        .frame(height: 120)
-                        .accessibilityValue(durationText(desiredMinutes))
-                        if sleepDurationPreference == .inferred {
-                            Text("未確定の場合も、スコア計算ではこの時間を仮の基準として使います。記録が増えたら分析画面の傾向を見て調整できます。")
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
-                        }
+                    } else {
+                        inferredDurationView
                     }
                     DatePicker("通常の起床時刻", selection: $wakeTime, displayedComponents: .hourAndMinute)
                     Picker("週の開始曜日", selection: $weekStart) {
@@ -92,7 +92,7 @@ struct SettingsView: View {
                         .font(.footnote).foregroundStyle(.secondary)
                 }
                 Section("注意事項") {
-                    Text("睡眠スコアは、睡眠時間40点、起床時刻25点、スッキリ度25点、睡眠の分断10点を基本とする参考値です。医療上の評価ではありません。")
+                    Text("睡眠スコアは、入力内容と個人目標を比べるための参考値です。医療上の評価ではありません。")
                     Text("NemuChartは診断や治療を行いません。強い眠気などが続いて気になる場合は、医療機関などへの相談を検討してください。記録は端末内に保存し、外部へ送信しません。")
                     if !saveStatus.isEmpty {
                         Label(saveStatus, systemImage: saveStatus == "保存済み" ? "checkmark.circle" : "exclamationmark.triangle")
@@ -103,9 +103,15 @@ struct SettingsView: View {
             }
             .navigationTitle("設定")
             .toolbar { Button("閉じる") { dismiss() } }
-            .task { authorizationState = await dependencies.notificationService.authorizationState() }
+            .task {
+                authorizationState = await dependencies.notificationService.authorizationState()
+                loadInferredEstimate()
+            }
             .onChange(of: desiredMinutes) { _, _ in scheduleSave() }
-            .onChange(of: sleepDurationPreference) { _, _ in scheduleSave() }
+            .onChange(of: sleepDurationPreference) { _, _ in
+                loadInferredEstimate()
+                scheduleSave()
+            }
             .onChange(of: wakeTime) { _, _ in scheduleSave() }
             .onChange(of: weekStart) { _, _ in scheduleSave() }
             .onChange(of: notificationsEnabled) { _, enabled in
@@ -143,10 +149,13 @@ struct SettingsView: View {
         guard hasPendingChanges else { return }
         do {
             let parts = Calendar.current.dateComponents([.hour, .minute], from: wakeTime)
+            let savedDesiredMinutes = sleepDurationPreference == .inferred
+                ? inferredMidpointMinutes ?? desiredMinutes
+                : desiredMinutes
             let updated = try UserSettings(
                 id: settings.id,
                 hasCompletedOnboarding: true,
-                desiredSleepDuration: TimeInterval(desiredMinutes * 60),
+                desiredSleepDuration: TimeInterval(savedDesiredMinutes * 60),
                 sleepDurationPreference: sleepDurationPreference,
                 standardWakeTime: LocalTime(hour: parts.hour ?? 7, minute: parts.minute ?? 0)!,
                 averageSleepLatencyMinutes: settings.averageSleepLatencyMinutes,
@@ -205,6 +214,35 @@ struct SettingsView: View {
 
     private func durationText(_ minutes: Int) -> String {
         minutes % 60 == 0 ? "\(minutes / 60)時間" : "\(minutes / 60)時間\(minutes % 60)分"
+    }
+
+    private var inferredDurationView: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("推定最適睡眠時間")
+            if let inferredEstimate {
+                Text("\(durationText(inferredEstimate.lowerBoundMinutes))〜\(durationText(inferredEstimate.upperBoundMinutes))")
+                    .font(.headline)
+                Text("過去の睡眠データとスッキリ度から推定しています。入力は不要です。")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                Text("有効サンプル \(inferredEstimate.sampleCount)件 ・ 信頼度 \(inferredEstimate.confidence.displayName)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                Text("推定には10件以上の睡眠記録が必要です。記録が増えるまで現在の基準値を維持します。")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private var inferredMidpointMinutes: Int? {
+        inferredEstimate.map { ($0.lowerBoundMinutes + $0.upperBoundMinutes) / 2 }
+    }
+
+    private func loadInferredEstimate() {
+        let records = (try? dependencies.sleepRecordRepository.records()) ?? []
+        inferredEstimate = dependencies.weeklyAnalysisService.comfortableDurationEstimate(records: records)
     }
 }
 

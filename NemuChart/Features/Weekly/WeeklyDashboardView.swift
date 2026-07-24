@@ -19,6 +19,7 @@ struct WeeklyDashboardView: View {
                         VStack(alignment: .leading, spacing: 20) {
                             scoreHeader(metrics)
                             dailyScores(metrics)
+                            scoreBreakdown(metrics)
                             sleepChart(metrics)
                             metricGrid(metrics)
                             confidenceCard(metrics.confidence)
@@ -91,7 +92,7 @@ struct WeeklyDashboardView: View {
                     HStack {
                         Text(day.dateLabel)
                         Spacer()
-                        Text(day.score.map { "\($0)点" } ?? "未記録")
+                        Text(day.score.map { "\($0.total)点" } ?? "未記録")
                             .bold(day.score != nil)
                             .foregroundStyle(day.score == nil ? .secondary : .primary)
                     }
@@ -108,7 +109,7 @@ struct WeeklyDashboardView: View {
             metric("就床時刻のばらつき", metrics.bedTimeVariationMinutes.map { "約\(Int($0.rounded()))分" } ?? "—")
             metric("起床時刻のばらつき", metrics.wakeTimeVariationMinutes.map { "約\(Int($0.rounded()))分" } ?? "—")
             metric("平均スッキリ度", metrics.averageFreshness.map { String(format: "%.1f / 5", $0) } ?? "—")
-            metric("スヌーズした割合", metrics.snoozeRate.map(percent) ?? "未入力")
+            metric("スヌーズした割合", metrics.snoozeRate.map(percent) ?? "—")
             metric("睡眠時間目標に近い割合", metrics.sleepDurationGoalRate.map(percent) ?? "—")
         }
     }
@@ -165,7 +166,7 @@ struct WeeklyDashboardView: View {
             let c = calendar.dateComponents([.year, .month, .day], from: date)
             let key = String(format: "%04d-%02d-%02d", c.year!, c.month!, c.day!)
             let record = metrics.recordsByDay[key]
-            let score = record.flatMap { try? scoringService.score(record: $0, settings: settings).total }
+            let score = record.flatMap { try? scoringService.score(record: $0, settings: settings) }
             return ChartDay(
                 key: key,
                 label: date.formatted(.dateTime.weekday(.narrow)),
@@ -173,6 +174,39 @@ struct WeeklyDashboardView: View {
                 hours: record.map { $0.sleepDuration / 3600 },
                 score: score
             )
+        }
+    }
+
+    private func scoreBreakdown(_ metrics: WeeklyMetrics) -> some View {
+        let days = chartDays(metrics).filter { $0.score != nil }
+        return GroupBox("点数の内訳") {
+            if days.isEmpty {
+                Text("記録がある日に、睡眠時間・起床時刻・スッキリ度などの内訳を表示します。")
+                    .foregroundStyle(.secondary)
+            } else {
+                VStack(spacing: 12) {
+                    ForEach(days) { day in
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Text(day.dateLabel).font(.headline)
+                                Spacer()
+                                Text("\(day.score?.total ?? 0)点").bold()
+                            }
+                            ForEach(day.score?.components ?? [], id: \.kind) { component in
+                                HStack {
+                                    Text(component.kind.displayName)
+                                    Spacer()
+                                    Text("\(component.points) / \(component.possiblePoints)")
+                                        .monospacedDigit()
+                                }
+                                .font(.subheadline)
+                                ProgressView(value: Double(component.points), total: Double(component.possiblePoints))
+                            }
+                        }
+                        if day.id != days.last?.id { Divider() }
+                    }
+                }
+            }
         }
     }
 
@@ -189,7 +223,18 @@ private struct ChartDay: Identifiable {
     let label: String
     let dateLabel: String
     let hours: Double?
-    let score: Int?
+    let score: DailySleepScore?
+}
+
+private extension ScoreComponent.Kind {
+    var displayName: String {
+        switch self {
+        case .duration: "睡眠時間"
+        case .timing: "起床時刻"
+        case .freshness: "スッキリ度"
+        case .continuity: "睡眠の分断"
+        }
+    }
 }
 
 extension AnalysisConfidence {

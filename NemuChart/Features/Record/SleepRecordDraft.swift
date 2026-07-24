@@ -95,22 +95,9 @@ struct SleepRecordDraft {
                 dateTimeService: dateTimeService
             )
         }
-        var bed = try Self.date(matchingClock: bedClock, on: day, calendar: calendar)
-        if bed >= wake { bed = calendar.date(byAdding: .day, value: -1, to: bed)! }
-
-        let sleepStart: Date
-        switch sleepStartInputMode {
-        case .clockTime:
-            var candidate = try Self.date(matchingClock: sleepClock, on: day, calendar: calendar)
-            if candidate >= wake { candidate = calendar.date(byAdding: .day, value: -1, to: candidate)! }
-            guard candidate >= bed else { throw SleepRecordValidationError.sleepBeforeBed }
-            sleepStart = candidate
-        case .latency:
-            guard (0...240).contains(latencyMinutes) else {
-                throw SleepDraftValidationError.invalidLatency
-            }
-            sleepStart = bed.addingTimeInterval(TimeInterval(latencyMinutes * 60))
-        }
+        var sleepStart = try Self.date(matchingClock: sleepClock, on: day, calendar: calendar)
+        if sleepStart >= wake { sleepStart = calendar.date(byAdding: .day, value: -1, to: sleepStart)! }
+        let bed = sleepStart
 
         var normalizedSmartphoneEndTime: Date?
         if let smartphoneEndTime {
@@ -120,17 +107,17 @@ struct SleepRecordDraft {
         }
         let factors = try SleepFactors(
             isAllNighter: false,
-            awakeningCount: awakeningCount,
-            snoozeCount: snoozeCount,
-            secondSleepMinutes: secondSleepMinutes,
-            napMinutes: napMinutes,
-            consumedAlcohol: consumedAlcohol,
-            consumedCaffeine: consumedCaffeine,
+            awakeningCount: awakeningCount ?? 0,
+            snoozeCount: snoozeCount ?? 0,
+            secondSleepMinutes: secondSleepMinutes ?? 0,
+            napMinutes: napMinutes ?? 0,
+            consumedAlcohol: consumedAlcohol ?? false,
+            consumedCaffeine: consumedCaffeine ?? false,
             smartphoneEndTime: normalizedSmartphoneEndTime,
-            stress: stress,
-            comfort: comfort,
-            reportedSnoring: reportedSnoring,
-            reportedBreathingPause: reportedBreathingPause
+            stress: stress ?? .medium,
+            comfort: comfort ?? .medium,
+            reportedSnoring: reportedSnoring ?? false,
+            reportedBreathingPause: reportedBreathingPause ?? false
         )
         return try SleepRecord(
             id: id,

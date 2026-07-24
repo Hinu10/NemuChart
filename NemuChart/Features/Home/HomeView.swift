@@ -42,8 +42,11 @@ struct HomeView: View {
                         .resizable()
                         .scaledToFit()
                         .frame(maxWidth: .infinity)
-                        .frame(height: 86)
+                        .frame(height: 72)
                         .accessibilityLabel("NemuChart")
+                    if let weeklyGoal = preferenceData.weeklyGoal {
+                        weeklyGoalCard(weeklyGoal)
+                    }
                     greetingHeader
                     landscapeCard
                     if let safetyGuidance { safetyCard(safetyGuidance) }
@@ -81,9 +84,6 @@ struct HomeView: View {
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.bordered)
-                    if let weeklyGoal = preferenceData.weeklyGoal {
-                        weeklyGoalCard(weeklyGoal)
-                    }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding()
@@ -189,11 +189,16 @@ struct HomeView: View {
                 .accessibilityHidden(true)
                 animatedSheep
                 ViewThatFits(in: .horizontal) {
-                    HStack { sheepStateSummary; Spacer(); growthSummary }
-                    VStack(alignment: .leading, spacing: 8) { sheepStateSummary; growthSummary }
+                    HStack(spacing: 10) {
+                        sheepStateSummary
+                        growthSummary
+                    }
+                    VStack(alignment: .leading, spacing: 8) {
+                        sheepStateSummary
+                        growthSummary
+                    }
                 }
-                .padding(12)
-                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14))
+                .frame(maxWidth: .infinity)
                 ProgressView(value: Double(weeklyMetrics?.recordedDayCount ?? 0), total: 7) {
                     Text("今週の記録 \(weeklyMetrics?.recordedDayCount ?? 0) / 7日")
                 }
@@ -203,7 +208,7 @@ struct HomeView: View {
             }
             .padding()
         }
-        .frame(minHeight: 410)
+        .frame(minHeight: 360)
         .clipShape(RoundedRectangle(cornerRadius: 22))
         .onAppear { sheepAnimating = true }
     }
@@ -235,6 +240,9 @@ struct HomeView: View {
             Text("元気度").font(.caption).foregroundStyle(.secondary)
             Text(vitality.displayName).bold()
         }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14))
     }
 
     private var growthSummary: some View {
@@ -242,6 +250,9 @@ struct HomeView: View {
             Text("成長").font(.caption).foregroundStyle(.secondary)
             Text("\(growth.stage.displayName)・\(growth.points.value) pt").bold()
         }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14))
     }
 
     private var hasRecordForCurrentSleepDay: Bool {
@@ -269,7 +280,7 @@ struct HomeView: View {
 
     private var sleepDurationGuidance: String {
         if settings.sleepDurationPreference == .inferred {
-            return "快眠の基準はまだ仮設定です。いまは \(durationText(settings.desiredSleepDuration))を目安にして、記録が増えたら分析で見直せます。"
+            return "快眠の基準は記録から推定中です。いまは \(durationText(settings.desiredSleepDuration))を暫定の目安にしています。"
         }
         return "快眠の基準は \(durationText(settings.desiredSleepDuration))です。今夜の目標は後から設定できます。"
     }
@@ -513,14 +524,10 @@ struct HomeView: View {
         let service = DateTimeService()
         let targetWake = try service.date(on: sleepDay, localTime: settings.standardWakeTime, dayOffset: 0)
         let wake = min(targetWake, now)
-        let latency = settings.averageSleepLatencyMinutes ?? 20
         let sleepStart = wake.addingTimeInterval(-settings.desiredSleepDuration)
         var draft = SleepRecordDraft(now: wake)
         draft.wakeTime = wake
         draft.sleepClock = sleepStart
-        draft.bedClock = sleepStart.addingTimeInterval(TimeInterval(-latency * 60))
-        draft.sleepStartInputMode = .latency
-        draft.latencyMinutes = latency
         return draft
     }
 }

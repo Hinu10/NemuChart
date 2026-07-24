@@ -12,7 +12,6 @@ struct DailyScoreView: View {
     var feedback: SheepFeedback?
     var growthPointsEarned: Int = 0
     var onSetGoal: (() -> Void)?
-    @State private var showingExplanation = false
 
     var body: some View {
         ScrollView {
@@ -82,27 +81,11 @@ struct DailyScoreView: View {
                         .controlSize(.large)
                 }
 
-                Button("スコアの計算方法") { showingExplanation = true }
                 Text("このスコアは入力内容と個人目標を比べた参考値で、医療上の評価ではありません。")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
             .padding()
-        }
-        .sheet(isPresented: $showingExplanation) {
-            NavigationStack {
-                List {
-                    Section("配点") {
-                        Text("睡眠時間40点、起床時刻25点、スッキリ度25点、睡眠の分断10点を基本とします。")
-                        Text("中途覚醒が未入力の場合は、その10点を他の入力済み項目へ再配分します。欠測を0回とはみなしません。")
-                    }
-                    Section("考え方") {
-                        Text("生活要因は機械的な減点に使いません。目標達成度も、この睡眠スコアとは別の指標です。")
-                        Text("計算ルール：\(score.ruleVersion)")
-                    }
-                }
-                .navigationTitle("スコアについて")
-            }
         }
     }
 
