@@ -23,6 +23,7 @@ struct HomeView: View {
     @State private var safetyGuidance: SafetyGuidance?
     @State private var loadError: String?
     @State private var sheepAnimating = false
+    @State private var landscapeCardWidth: CGFloat = 0
 
     private var period: HomeTimeOfDay { TimeOfDayPolicy().period(at: now) }
     private var vitality: Vitality { dependencies.vitalityService.vitality(scores: scores) }
@@ -171,11 +172,15 @@ struct HomeView: View {
     }
 
     private var landscapeCard: some View {
-        ViewThatFits(in: .horizontal) {
-            landscapeCardContent(isCompact: false)
-                .frame(minWidth: 430)
-            landscapeCardContent(isCompact: true)
-        }
+        landscapeCardContent(isCompact: landscapeCardWidth == 0 || landscapeCardWidth < 430)
+            .background(
+                GeometryReader { proxy in
+                    Color.clear.preference(key: LandscapeCardWidthPreferenceKey.self, value: proxy.size.width)
+                }
+            )
+            .onPreferenceChange(LandscapeCardWidthPreferenceKey.self) { width in
+                landscapeCardWidth = width
+            }
     }
 
     private func landscapeCardContent(isCompact: Bool) -> some View {
@@ -678,6 +683,14 @@ private struct HomeRecordingRoute: Identifiable {
     let id = UUID()
     var initialRecord: SleepRecord?
     var initialDraft: SleepRecordDraft?
+}
+
+private struct LandscapeCardWidthPreferenceKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
+    }
 }
 
 private enum HomeRecordDayChoice: Int, CaseIterable, Identifiable {
