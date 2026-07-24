@@ -35,7 +35,8 @@ struct HomeView: View {
     private var landscape: LandscapeState { dependencies.landscapeService.state(timeOfDay: period, vitality: vitality) }
 
     var body: some View {
-        NavigationStack {
+        GeometryReader { rootProxy in
+            NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
                     Image("NemuChartLogoCropped")
@@ -49,7 +50,7 @@ struct HomeView: View {
                         weeklyGoalCard(weeklyGoal)
                     }
                     greetingHeader
-                    landscapeCard
+                    landscapeCard(isPortrait: rootProxy.size.height >= rootProxy.size.width)
                     if let safetyGuidance { safetyCard(safetyGuidance) }
                     Button {
                         showingRecordDayChoices = true
@@ -96,6 +97,7 @@ struct HomeView: View {
                     Button("設定", systemImage: "gearshape") { showingSettings = true }
                 }
             }
+        }
         }
         .confirmationDialog("記録する日を選んでください", isPresented: $showingRecordDayChoices, titleVisibility: .visible) {
             ForEach(recordDayChoices) { choice in
@@ -171,13 +173,8 @@ struct HomeView: View {
         )) { Button("OK", role: .cancel) {} } message: { Text(loadError ?? "") }
     }
 
-    private var landscapeCard: some View {
-        ViewThatFits(in: .horizontal) {
-            landscapeCardContent(isCompact: false)
-                .frame(minWidth: 430)
-            landscapeCardContent(isCompact: true)
-                .frame(maxWidth: .infinity)
-        }
+    private func landscapeCard(isPortrait: Bool) -> some View {
+        landscapeCardContent(isCompact: isPortrait)
         .frame(maxWidth: .infinity)
     }
 
@@ -202,7 +199,8 @@ struct HomeView: View {
                     .shadow(radius: 3)
                     .accessibilityHidden(true)
                     if isCompact {
-                        animatedSheep(height: 126, includesTerrain: false)
+                        animatedSheep(height: 138, includesTerrain: false)
+                            .padding(.top, 8)
                         Spacer(minLength: 0)
                         compactLandscapeSummary
                     } else {
@@ -214,7 +212,7 @@ struct HomeView: View {
             }
             .clipShape(RoundedRectangle(cornerRadius: 22))
         }
-        .frame(height: isCompact ? 390 : 360)
+        .frame(height: isCompact ? 450 : 360)
         .onAppear { sheepAnimating = true }
     }
 
@@ -328,6 +326,7 @@ struct HomeView: View {
             growthSummary
             weeklyProgressSummary
         }
+        .font(.subheadline)
         .frame(maxWidth: .infinity)
     }
 
@@ -356,10 +355,7 @@ struct HomeView: View {
                     reduceMotion ? nil : .easeInOut(duration: sheepAnimationDuration).repeatForever(autoreverses: true),
                     value: sheepAnimating
                 )
-            if vitality == .resting {
-                restingEyeShadows
-                    .offset(y: (includesTerrain ? -20 : 0) + (reduceMotion ? 0 : (sheepAnimating ? sheepOffset : -2)))
-            } else if vitality == .radiant || vitality == .lively {
+            if vitality == .radiant || vitality == .lively {
                 sleepingMarks
             }
         }
@@ -409,22 +405,6 @@ struct HomeView: View {
                 value: sheepAnimating
             )
             .accessibilityHidden(true)
-    }
-
-    private var restingEyeShadows: some View {
-        HStack(spacing: 22) {
-            Capsule()
-                .fill(.purple.opacity(0.32))
-                .frame(width: 24, height: 8)
-                .rotationEffect(.degrees(10))
-            Capsule()
-                .fill(.purple.opacity(0.32))
-                .frame(width: 24, height: 8)
-                .rotationEffect(.degrees(-10))
-        }
-        .offset(x: -7, y: 0)
-        .blur(radius: 0.5)
-        .accessibilityHidden(true)
     }
 
     private var landscapeTint: some View {
