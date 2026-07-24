@@ -290,10 +290,9 @@ struct HomeView: View {
         }
     }
 
-    private var sheepScale: CGFloat { vitality == .radiant ? 1.015 : 1.005 }
-    private var sheepRotation: Double { vitality == .resting ? 1.2 : vitality == .radiant ? 0.7 : 0.3 }
-    private var sheepOffset: CGFloat { vitality == .resting ? 2 : vitality == .radiant ? -3 : vitality == .lively ? -2 : 1 }
-    private var sheepAnimationDuration: Double { vitality == .radiant ? 1.5 : vitality == .resting ? 2.4 : 2.8 }
+    private var sheepRotation: Double { vitality == .resting ? 0.35 : 0.2 }
+    private var sheepOffset: CGFloat { vitality == .radiant ? -0.8 : 0.8 }
+    private var sheepAnimationDuration: Double { 4.5 }
     private var recordDayChoices: [HomeRecordDayChoice] { [.today, .yesterday, .twoDaysAgo] }
 
     private var sleepDurationGuidance: String {
@@ -348,9 +347,8 @@ struct HomeView: View {
                 .resizable()
                 .scaledToFit()
                 .frame(height: height)
-                .scaleEffect(reduceMotion ? 1 : (sheepAnimating ? sheepScale : 1))
                 .rotationEffect(.degrees(reduceMotion ? 0 : (sheepAnimating ? sheepRotation : -sheepRotation)))
-                .offset(y: (includesTerrain ? -20 : 0) + (reduceMotion ? 0 : (sheepAnimating ? sheepOffset : -1)))
+                .offset(y: (includesTerrain ? -20 : 0) + (reduceMotion ? 0 : (sheepAnimating ? sheepOffset : 0)))
                 .animation(
                     reduceMotion ? nil : .easeInOut(duration: sheepAnimationDuration).repeatForever(autoreverses: true),
                     value: sheepAnimating
