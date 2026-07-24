@@ -171,13 +171,21 @@ struct HomeView: View {
     }
 
     private var landscapeCard: some View {
+        ViewThatFits(in: .horizontal) {
+            landscapeCardContent(isCompact: false)
+                .frame(minWidth: 430)
+            landscapeCardContent(isCompact: true)
+        }
+    }
+
+    private func landscapeCardContent(isCompact: Bool) -> some View {
         ZStack {
             Image("sheep-landscape")
                 .resizable()
                 .scaledToFill()
                 .overlay(landscapeTint)
                 .accessibilityHidden(true)
-            VStack(spacing: 14) {
+            VStack(spacing: isCompact ? 10 : 14) {
                 HStack {
                     Image(systemName: period.symbol)
                     Spacer()
@@ -187,28 +195,18 @@ struct HomeView: View {
                 .foregroundStyle(.white)
                 .shadow(radius: 3)
                 .accessibilityHidden(true)
-                animatedSheep
-                ViewThatFits(in: .horizontal) {
-                    HStack(spacing: 10) {
-                        sheepStateSummary
-                        growthSummary
-                    }
-                    VStack(alignment: .leading, spacing: 8) {
-                        sheepStateSummary
-                        growthSummary
-                    }
+                if isCompact {
+                    animatedSheep(height: 150, includesTerrain: false)
+                    Spacer(minLength: 0)
+                    compactLandscapeSummary
+                } else {
+                    animatedSheep(height: 168, includesTerrain: true)
+                    regularLandscapeSummary
                 }
-                .frame(maxWidth: .infinity)
-                ProgressView(value: Double(weeklyMetrics?.recordedDayCount ?? 0), total: 7) {
-                    Text("今週の記録 \(weeklyMetrics?.recordedDayCount ?? 0) / 7日")
-                }
-                .tint(.white)
-                .padding(12)
-                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14))
             }
-            .padding()
+            .padding(isCompact ? 14 : 16)
         }
-        .frame(minHeight: 360)
+        .frame(height: isCompact ? 430 : 360)
         .clipShape(RoundedRectangle(cornerRadius: 22))
         .onAppear { sheepAnimating = true }
     }
@@ -239,6 +237,8 @@ struct HomeView: View {
         VStack(alignment: .leading) {
             Text("元気度").font(.caption).foregroundStyle(.secondary)
             Text(vitality.displayName).bold()
+                .lineLimit(2)
+                .minimumScaleFactor(0.82)
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -249,6 +249,8 @@ struct HomeView: View {
         VStack(alignment: .leading) {
             Text("成長").font(.caption).foregroundStyle(.secondary)
             Text("\(growth.stage.displayName)・\(growth.points.value) pt").bold()
+                .lineLimit(2)
+                .minimumScaleFactor(0.82)
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -285,28 +287,69 @@ struct HomeView: View {
         return "快眠の基準は \(durationText(settings.desiredSleepDuration))です。今夜の目標は後から設定できます。"
     }
 
-    private var animatedSheep: some View {
+    private var regularLandscapeSummary: some View {
+        VStack(spacing: 10) {
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 10) {
+                    sheepStateSummary
+                    growthSummary
+                }
+                VStack(alignment: .leading, spacing: 8) {
+                    sheepStateSummary
+                    growthSummary
+                }
+            }
+            weeklyProgressSummary
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private var compactLandscapeSummary: some View {
+        VStack(spacing: 8) {
+            HStack(spacing: 8) {
+                sheepStateSummary
+                growthSummary
+            }
+            weeklyProgressSummary
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private var weeklyProgressSummary: some View {
+        ProgressView(value: Double(weeklyMetrics?.recordedDayCount ?? 0), total: 7) {
+            Text("今週の記録 \(weeklyMetrics?.recordedDayCount ?? 0) / 7日")
+                .lineLimit(1)
+                .minimumScaleFactor(0.82)
+        }
+        .tint(.white)
+        .padding(12)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14))
+    }
+
+    private func animatedSheep(height: CGFloat, includesTerrain: Bool) -> some View {
         ZStack(alignment: .bottom) {
-            sheepTerrain
+            if includesTerrain { sheepTerrain }
             Image(sheepAssetName)
                 .resizable()
                 .scaledToFit()
-                .frame(height: 168)
+                .frame(height: height)
                 .scaleEffect(reduceMotion ? 1 : (sheepAnimating ? sheepScale : 0.97))
                 .rotationEffect(.degrees(reduceMotion ? 0 : (sheepAnimating ? sheepRotation : -sheepRotation)))
-                .offset(y: -20 + (reduceMotion ? 0 : (sheepAnimating ? sheepOffset : -2)))
+                .offset(y: (includesTerrain ? -20 : 0) + (reduceMotion ? 0 : (sheepAnimating ? sheepOffset : -2)))
                 .animation(
                     reduceMotion ? nil : .easeInOut(duration: sheepAnimationDuration).repeatForever(autoreverses: true),
                     value: sheepAnimating
                 )
             if vitality == .resting {
                 restingEyeShadows
-                    .offset(y: -20 + (reduceMotion ? 0 : (sheepAnimating ? sheepOffset : -2)))
+                    .offset(y: (includesTerrain ? -20 : 0) + (reduceMotion ? 0 : (sheepAnimating ? sheepOffset : -2)))
             } else if vitality == .radiant || vitality == .lively {
                 sleepingMarks
             }
         }
-        .frame(height: 232)
+        .frame(maxWidth: .infinity)
+        .frame(height: includesTerrain ? 232 : 164)
+        .clipped()
         .accessibilityLabel("羊は\(vitality.displayName)状態です")
     }
 
