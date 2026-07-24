@@ -200,6 +200,7 @@ struct HomeView: View {
                     .accessibilityHidden(true)
                     if isCompact {
                         animatedSheep(height: 178, includesTerrain: false)
+                            .offset(y: 18)
                         Spacer(minLength: 0)
                         compactLandscapeSummary
                     } else {
@@ -289,10 +290,10 @@ struct HomeView: View {
         }
     }
 
-    private var sheepScale: CGFloat { vitality == .radiant ? 1.05 : 1.01 }
-    private var sheepRotation: Double { vitality == .resting ? 4.0 : vitality == .radiant ? 1.5 : 0.5 }
-    private var sheepOffset: CGFloat { vitality == .resting ? 7 : vitality == .radiant ? -10 : vitality == .lively ? -4 : 1 }
-    private var sheepAnimationDuration: Double { vitality == .radiant ? 0.7 : vitality == .resting ? 1.6 : 2.2 }
+    private var sheepScale: CGFloat { vitality == .radiant ? 1.015 : 1.005 }
+    private var sheepRotation: Double { vitality == .resting ? 1.2 : vitality == .radiant ? 0.7 : 0.3 }
+    private var sheepOffset: CGFloat { vitality == .resting ? 2 : vitality == .radiant ? -3 : vitality == .lively ? -2 : 1 }
+    private var sheepAnimationDuration: Double { vitality == .radiant ? 1.5 : vitality == .resting ? 2.4 : 2.8 }
     private var recordDayChoices: [HomeRecordDayChoice] { [.today, .yesterday, .twoDaysAgo] }
 
     private var sleepDurationGuidance: String {
@@ -347,9 +348,9 @@ struct HomeView: View {
                 .resizable()
                 .scaledToFit()
                 .frame(height: height)
-                .scaleEffect(reduceMotion ? 1 : (sheepAnimating ? sheepScale : 0.97))
+                .scaleEffect(reduceMotion ? 1 : (sheepAnimating ? sheepScale : 1))
                 .rotationEffect(.degrees(reduceMotion ? 0 : (sheepAnimating ? sheepRotation : -sheepRotation)))
-                .offset(y: (includesTerrain ? -20 : 0) + (reduceMotion ? 0 : (sheepAnimating ? sheepOffset : -2)))
+                .offset(y: (includesTerrain ? -20 : 0) + (reduceMotion ? 0 : (sheepAnimating ? sheepOffset : -1)))
                 .animation(
                     reduceMotion ? nil : .easeInOut(duration: sheepAnimationDuration).repeatForever(autoreverses: true),
                     value: sheepAnimating
