@@ -21,6 +21,7 @@ struct HomeView: View {
     @State private var preferenceData = AppPreferenceData()
     @State private var safetyGuidance: SafetyGuidance?
     @State private var loadError: String?
+    @State private var sheepAnimating = false
 
     private var period: HomeTimeOfDay { TimeOfDayPolicy().period(at: now) }
     private var vitality: Vitality { dependencies.vitalityService.vitality(scores: scores) }
@@ -197,12 +198,12 @@ struct HomeView: View {
                     .shadow(radius: 3)
                     .accessibilityHidden(true)
                     if isCompact {
-                        animatedSheep(height: 178, includesTerrain: false)
-                            .offset(y: 18)
+                        animatedSheep(height: 168, includesTerrain: false, canMove: true)
+                            .padding(.top, 16)
                         Spacer(minLength: 0)
                         compactLandscapeSummary
                     } else {
-                        animatedSheep(height: 168, includesTerrain: true)
+                        animatedSheep(height: 168, includesTerrain: true, canMove: true)
                         regularLandscapeSummary
                     }
                 }
@@ -211,6 +212,8 @@ struct HomeView: View {
             .clipShape(RoundedRectangle(cornerRadius: 22))
         }
         .frame(height: isCompact ? 450 : 360)
+        .clipShape(RoundedRectangle(cornerRadius: 22))
+        .onAppear { sheepAnimating = true }
     }
 
     private var greetingHeader: some View {
@@ -334,14 +337,18 @@ struct HomeView: View {
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14))
     }
 
-    private func animatedSheep(height: CGFloat, includesTerrain: Bool) -> some View {
+    private func animatedSheep(height: CGFloat, includesTerrain: Bool, canMove: Bool) -> some View {
         ZStack(alignment: .bottom) {
             if includesTerrain { sheepTerrain }
             Image(sheepAssetName)
                 .resizable()
                 .scaledToFit()
                 .frame(height: height)
-                .offset(y: includesTerrain ? -20 : 0)
+                .offset(y: (includesTerrain ? -20 : 0) + (canMove && sheepAnimating ? -4 : 0))
+                .animation(
+                    canMove ? .easeInOut(duration: 3.8).repeatForever(autoreverses: true) : nil,
+                    value: sheepAnimating
+                )
             if vitality == .radiant || vitality == .lively {
                 sleepingMarks
             }
