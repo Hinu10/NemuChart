@@ -199,8 +199,7 @@ struct HomeView: View {
                     .shadow(radius: 3)
                     .accessibilityHidden(true)
                     if isCompact {
-                        animatedSheep(height: 188, includesTerrain: false)
-                            .offset(y: 30)
+                        animatedSheep(height: 178, includesTerrain: false)
                         Spacer(minLength: 0)
                         compactLandscapeSummary
                     } else {
@@ -360,8 +359,7 @@ struct HomeView: View {
             }
         }
         .frame(maxWidth: .infinity)
-        .frame(height: includesTerrain ? 232 : 164)
-        .clipped()
+        .frame(height: includesTerrain ? 232 : max(height + 28, 164))
         .accessibilityLabel("羊は\(vitality.displayName)状態です")
     }
 
