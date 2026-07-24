@@ -199,8 +199,8 @@ struct HomeView: View {
                     .shadow(radius: 3)
                     .accessibilityHidden(true)
                     if isCompact {
-                        animatedSheep(height: 138, includesTerrain: false)
-                            .padding(.top, 8)
+                        animatedSheep(height: 188, includesTerrain: false)
+                            .offset(y: 30)
                         Spacer(minLength: 0)
                         compactLandscapeSummary
                     } else {
