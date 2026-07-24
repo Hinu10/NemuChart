@@ -23,7 +23,6 @@ struct HomeView: View {
     @State private var safetyGuidance: SafetyGuidance?
     @State private var loadError: String?
     @State private var sheepAnimating = false
-    @State private var landscapeCardWidth: CGFloat = 0
 
     private var period: HomeTimeOfDay { TimeOfDayPolicy().period(at: now) }
     private var vitality: Vitality { dependencies.vitalityService.vitality(scores: scores) }
@@ -42,8 +41,9 @@ struct HomeView: View {
                     Image("NemuChartLogoCropped")
                         .resizable()
                         .scaledToFit()
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 72)
+                        .frame(maxWidth: 300)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .frame(height: 64)
                         .accessibilityLabel("NemuChart")
                     if let weeklyGoal = preferenceData.weeklyGoal {
                         weeklyGoalCard(weeklyGoal)
@@ -86,8 +86,8 @@ struct HomeView: View {
                     }
                     .buttonStyle(.bordered)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding()
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
             .navigationTitle("")
             .toolbar {
@@ -172,70 +172,83 @@ struct HomeView: View {
     }
 
     private var landscapeCard: some View {
-        landscapeCardContent(isCompact: landscapeCardWidth == 0 || landscapeCardWidth < 430)
-            .background(
-                GeometryReader { proxy in
-                    Color.clear.preference(key: LandscapeCardWidthPreferenceKey.self, value: proxy.size.width)
-                }
-            )
-            .onPreferenceChange(LandscapeCardWidthPreferenceKey.self) { width in
-                landscapeCardWidth = width
-            }
+        ViewThatFits(in: .horizontal) {
+            landscapeCardContent(isCompact: false)
+                .frame(minWidth: 430)
+            landscapeCardContent(isCompact: true)
+                .frame(maxWidth: .infinity)
+        }
+        .frame(maxWidth: .infinity)
     }
 
     private func landscapeCardContent(isCompact: Bool) -> some View {
-        ZStack {
-            Image("sheep-landscape")
-                .resizable()
-                .scaledToFill()
-                .overlay(landscapeTint)
-                .accessibilityHidden(true)
-            VStack(spacing: isCompact ? 10 : 14) {
-                HStack {
-                    Image(systemName: period.symbol)
-                    Spacer()
-                    Image(systemName: landscape.mood.symbol)
+        GeometryReader { proxy in
+            ZStack {
+                Image("sheep-landscape")
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: proxy.size.width, height: proxy.size.height)
+                    .clipped()
+                    .overlay(landscapeTint)
+                    .accessibilityHidden(true)
+                VStack(spacing: isCompact ? 10 : 14) {
+                    HStack {
+                        Image(systemName: period.symbol)
+                        Spacer()
+                        Image(systemName: landscape.mood.symbol)
+                    }
+                    .font(.title)
+                    .foregroundStyle(.white)
+                    .shadow(radius: 3)
+                    .accessibilityHidden(true)
+                    if isCompact {
+                        animatedSheep(height: 126, includesTerrain: false)
+                        Spacer(minLength: 0)
+                        compactLandscapeSummary
+                    } else {
+                        animatedSheep(height: 168, includesTerrain: true)
+                        regularLandscapeSummary
+                    }
                 }
-                .font(.title)
-                .foregroundStyle(.white)
-                .shadow(radius: 3)
-                .accessibilityHidden(true)
-                if isCompact {
-                    animatedSheep(height: 150, includesTerrain: false)
-                    Spacer(minLength: 0)
-                    compactLandscapeSummary
-                } else {
-                    animatedSheep(height: 168, includesTerrain: true)
-                    regularLandscapeSummary
-                }
+                .padding(isCompact ? 14 : 16)
             }
-            .padding(isCompact ? 14 : 16)
+            .clipShape(RoundedRectangle(cornerRadius: 22))
         }
-        .frame(height: isCompact ? 430 : 360)
-        .clipShape(RoundedRectangle(cornerRadius: 22))
+        .frame(height: isCompact ? 390 : 360)
         .onAppear { sheepAnimating = true }
     }
 
     private var greetingHeader: some View {
-        HStack(alignment: .top, spacing: 14) {
+        ViewThatFits(in: .horizontal) {
+            greetingHeaderContent(isCompact: false)
+            greetingHeaderContent(isCompact: true)
+        }
+        .padding(18)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 22))
+        .accessibilityElement(children: .combine)
+    }
+
+    private func greetingHeaderContent(isCompact: Bool) -> some View {
+        HStack(alignment: .top, spacing: isCompact ? 8 : 14) {
             Image(systemName: period.symbol)
                 .font(.title)
                 .foregroundStyle(period.accentColor)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 7) {
                 Text(period.title)
-                    .font(.system(.largeTitle, design: .rounded, weight: .heavy))
+                    .font(.system(isCompact ? .title : .largeTitle, design: .rounded, weight: .heavy))
                     .foregroundStyle(period.titleGradient)
                     .shadow(color: period.accentColor.opacity(0.22), radius: 5, y: 2)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.78)
                 Text(period.message)
                     .font(.headline)
                     .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
-        .padding(18)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 22))
-        .accessibilityElement(children: .combine)
     }
 
     private var sheepStateSummary: some View {
@@ -311,10 +324,8 @@ struct HomeView: View {
 
     private var compactLandscapeSummary: some View {
         VStack(spacing: 8) {
-            HStack(spacing: 8) {
-                sheepStateSummary
-                growthSummary
-            }
+            sheepStateSummary
+            growthSummary
             weeklyProgressSummary
         }
         .frame(maxWidth: .infinity)
@@ -683,14 +694,6 @@ private struct HomeRecordingRoute: Identifiable {
     let id = UUID()
     var initialRecord: SleepRecord?
     var initialDraft: SleepRecordDraft?
-}
-
-private struct LandscapeCardWidthPreferenceKey: PreferenceKey {
-    static var defaultValue: CGFloat = 0
-
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = nextValue()
-    }
 }
 
 private enum HomeRecordDayChoice: Int, CaseIterable, Identifiable {
