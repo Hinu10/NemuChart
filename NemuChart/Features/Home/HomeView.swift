@@ -6,7 +6,6 @@ struct HomeView: View {
     var onSettingsChanged: (UserSettings) -> Void = { _ in }
     var onResetAllData: () -> Void = {}
     @Environment(\.scenePhase) private var scenePhase
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var now = Date()
     @State private var recordingRoute: HomeRecordingRoute?
     @State private var showingRecordDayChoices = false
@@ -22,7 +21,6 @@ struct HomeView: View {
     @State private var preferenceData = AppPreferenceData()
     @State private var safetyGuidance: SafetyGuidance?
     @State private var loadError: String?
-    @State private var sheepAnimating = false
 
     private var period: HomeTimeOfDay { TimeOfDayPolicy().period(at: now) }
     private var vitality: Vitality { dependencies.vitalityService.vitality(scores: scores) }
@@ -213,7 +211,6 @@ struct HomeView: View {
             .clipShape(RoundedRectangle(cornerRadius: 22))
         }
         .frame(height: isCompact ? 450 : 360)
-        .onAppear { sheepAnimating = true }
     }
 
     private var greetingHeader: some View {
@@ -290,9 +287,6 @@ struct HomeView: View {
         }
     }
 
-    private var sheepRotation: Double { vitality == .resting ? 0.35 : 0.2 }
-    private var sheepOffset: CGFloat { vitality == .radiant ? -0.8 : 0.8 }
-    private var sheepAnimationDuration: Double { 4.5 }
     private var recordDayChoices: [HomeRecordDayChoice] { [.today, .yesterday, .twoDaysAgo] }
 
     private var sleepDurationGuidance: String {
@@ -347,12 +341,7 @@ struct HomeView: View {
                 .resizable()
                 .scaledToFit()
                 .frame(height: height)
-                .rotationEffect(.degrees(reduceMotion ? 0 : (sheepAnimating ? sheepRotation : -sheepRotation)))
-                .offset(y: (includesTerrain ? -20 : 0) + (reduceMotion ? 0 : (sheepAnimating ? sheepOffset : 0)))
-                .animation(
-                    reduceMotion ? nil : .easeInOut(duration: sheepAnimationDuration).repeatForever(autoreverses: true),
-                    value: sheepAnimating
-                )
+                .offset(y: includesTerrain ? -20 : 0)
             if vitality == .radiant || vitality == .lively {
                 sleepingMarks
             }
@@ -395,12 +384,8 @@ struct HomeView: View {
             .font(.system(.title3, design: .rounded, weight: .heavy))
             .foregroundStyle(.white)
             .shadow(color: .blue.opacity(0.35), radius: 4, y: 2)
-            .offset(x: 64, y: reduceMotion ? -72 : (sheepAnimating ? -84 : -68))
-            .opacity(reduceMotion ? 0.9 : (sheepAnimating ? 1 : 0.62))
-            .animation(
-                reduceMotion ? nil : .easeInOut(duration: 1.4).repeatForever(autoreverses: true),
-                value: sheepAnimating
-            )
+            .offset(x: 64, y: -76)
+            .opacity(0.9)
             .accessibilityHidden(true)
     }
 
