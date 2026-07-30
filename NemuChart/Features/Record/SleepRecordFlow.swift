@@ -135,7 +135,7 @@ struct SleepRecordFlow: View {
                     OptionalIntPicker(title: "中途覚醒", value: $draft.awakeningCount, range: 0...10, unit: "回")
                     OptionalIntPicker(title: "スヌーズ", value: $draft.snoozeCount, range: 0...10, unit: "回")
                     OptionalIntPicker(title: "二度寝", value: $draft.secondSleepMinutes, values: [0, 10, 20, 30, 45, 60, 90, 120], unit: "分")
-                    OptionalIntPicker(title: "昼寝", value: $draft.napMinutes, values: [0, 10, 20, 30, 45, 60, 90, 120], unit: "分")
+                    OptionalIntPicker(title: "昨日の昼寝", value: $draft.napMinutes, values: [0, 10, 20, 30, 45, 60, 90, 120], unit: "分")
                     OptionalBoolPicker(title: "飲酒", value: $draft.consumedAlcohol, trueLabel: "あり", falseLabel: "なし")
                     OptionalBoolPicker(title: "カフェイン", value: $draft.consumedCaffeine, trueLabel: "摂取した", falseLabel: "摂取していない")
                     Toggle("スマートフォン終了時刻を記録", isOn: Binding(

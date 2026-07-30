@@ -80,7 +80,7 @@ struct WeeklyDashboardView: View {
                         BarMark(
                             x: .value("日", day.label),
                             yStart: .value("夜間睡眠", hours),
-                            yEnd: .value("昼寝込み", hours + day.napHours)
+                            yEnd: .value("昨日の昼寝込み", hours + day.napHours)
                         )
                         .foregroundStyle(Color.orange)
                     }
@@ -112,11 +112,11 @@ struct WeeklyDashboardView: View {
             .accessibilityLabel("直近7日間の睡眠時間グラフ")
             .accessibilityValue(days.map { day in
                 if let hours = day.hours {
-                    return "\(day.label)は夜間睡眠\(String(format: "%.1f時間", hours))、昼寝\(String(format: "%.1f時間", day.napHours))"
+                    return "\(day.label)は夜間睡眠\(String(format: "%.1f時間", hours))、昨日の昼寝\(String(format: "%.1f時間", day.napHours))"
                 }
                 return "\(day.label)は記録なし"
             }.joined(separator: "、"))
-            Text("青緑は夜間睡眠、オレンジは昼寝です。昼寝はグラフに上積みしますが、点数には加算しません。")
+            Text("青緑は夜間睡眠、オレンジは昨日の昼寝です。昨日の昼寝はグラフに上積みしますが、点数には加算しません。")
                 .font(.caption).foregroundStyle(.secondary)
         }
     }
