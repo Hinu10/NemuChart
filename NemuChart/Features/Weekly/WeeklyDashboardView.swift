@@ -69,7 +69,8 @@ struct WeeklyDashboardView: View {
         let days = chartDays(metrics)
         return GroupBox("睡眠時間") {
             Chart(days) { day in
-                if let hours = day.hours {
+                if day.hasSleepOrNap {
+                    let hours = day.hours ?? 0
                     BarMark(
                         x: .value("日", day.label),
                         yStart: .value("開始", 0),
@@ -80,7 +81,7 @@ struct WeeklyDashboardView: View {
                         BarMark(
                             x: .value("日", day.label),
                             yStart: .value("夜間睡眠", hours),
-                            yEnd: .value("昨日の昼寝込み", hours + day.napHours)
+                            yEnd: .value("昼寝込み", hours + day.napHours)
                         )
                         .foregroundStyle(Color.orange)
                     }
@@ -111,12 +112,13 @@ struct WeeklyDashboardView: View {
             .accessibilityElement(children: .ignore)
             .accessibilityLabel("直近7日間の睡眠時間グラフ")
             .accessibilityValue(days.map { day in
-                if let hours = day.hours {
-                    return "\(day.label)は夜間睡眠\(String(format: "%.1f時間", hours))、昨日の昼寝\(String(format: "%.1f時間", day.napHours))"
+                if day.hasSleepOrNap {
+                    let sleepText = day.hours.map { String(format: "%.1f時間", $0) } ?? "記録なし"
+                    return "\(day.label)は夜間睡眠\(sleepText)、その日の昼寝\(String(format: "%.1f時間", day.napHours))"
                 }
                 return "\(day.label)は記録なし"
             }.joined(separator: "、"))
-            Text("青緑は夜間睡眠、オレンジは昨日の昼寝です。昨日の昼寝はグラフに上積みしますが、点数には加算しません。")
+            Text("青緑は夜間睡眠、オレンジはその日にした昼寝です。翌朝の記録で入力した「昨日の昼寝」は前日側に上積みし、点数には加算しません。")
                 .font(.caption).foregroundStyle(.secondary)
         }
     }
@@ -198,6 +200,7 @@ struct WeeklyDashboardView: View {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: metrics.endDay.timeZoneIdentifier) ?? .current
         let end = calendar.date(from: DateComponents(year: metrics.endDay.year, month: metrics.endDay.month, day: metrics.endDay.day))!
+        let napHoursByActualDay = napHoursByActualDay(metrics, calendar: calendar)
         return (-6...0).map { offset in
             let date = calendar.date(byAdding: .day, value: offset, to: end)!
             let c = calendar.dateComponents([.year, .month, .day], from: date)
@@ -209,9 +212,27 @@ struct WeeklyDashboardView: View {
                 label: date.formatted(.dateTime.weekday(.narrow)),
                 dateLabel: date.formatted(.dateTime.month().day().weekday(.abbreviated)),
                 hours: record.map { $0.sleepDuration / 3600 },
-                napHours: Double(record?.factors.napMinutes ?? 0) / 60,
+                napHours: napHoursByActualDay[key] ?? 0,
                 score: score
             )
+        }
+    }
+
+    private func napHoursByActualDay(_ metrics: WeeklyMetrics, calendar: Calendar) -> [String: Double] {
+        metrics.recordsByDay.values.reduce(into: [:]) { result, record in
+            let napMinutes = record.factors.napMinutes ?? 0
+            guard napMinutes > 0,
+                  let sleepDayDate = calendar.date(from: DateComponents(
+                    year: record.sleepDay.year,
+                    month: record.sleepDay.month,
+                    day: record.sleepDay.day
+                  )),
+                  let actualNapDate = calendar.date(byAdding: .day, value: -1, to: sleepDayDate)
+            else { return }
+            let components = calendar.dateComponents([.year, .month, .day], from: actualNapDate)
+            guard let year = components.year, let month = components.month, let day = components.day else { return }
+            let key = String(format: "%04d-%02d-%02d", year, month, day)
+            result[key, default: 0] += Double(napMinutes) / 60
         }
     }
 
@@ -272,6 +293,8 @@ private struct ChartDay: Identifiable {
     let hours: Double?
     let napHours: Double
     let score: DailySleepScore?
+
+    var hasSleepOrNap: Bool { hours != nil || napHours > 0 }
 }
 
 private extension ScoreComponent.Kind {
