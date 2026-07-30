@@ -95,15 +95,17 @@ struct SleepRecordDraft {
                 dateTimeService: dateTimeService
             )
         }
-        var sleepStart = try Self.date(matchingClock: sleepClock, on: day, calendar: calendar)
-        if sleepStart >= wake { sleepStart = calendar.date(byAdding: .day, value: -1, to: sleepStart)! }
+        let sleepStart = Self.normalizedDate(sleepClock, wake: wake, sleepDay: day, calendar: calendar)
         let bed = sleepStart
 
         var normalizedSmartphoneEndTime: Date?
         if let smartphoneEndTime {
-            var candidate = try Self.date(matchingClock: smartphoneEndTime, on: day, calendar: calendar)
-            if candidate >= wake { candidate = calendar.date(byAdding: .day, value: -1, to: candidate)! }
-            normalizedSmartphoneEndTime = candidate
+            normalizedSmartphoneEndTime = Self.normalizedDate(
+                smartphoneEndTime,
+                wake: wake,
+                sleepDay: day,
+                calendar: calendar
+            )
         }
         let factors = try SleepFactors(
             isAllNighter: false,
@@ -150,6 +152,22 @@ struct SleepRecordDraft {
             throw DateTimeError.invalidDateComponents
         }
         return result
+    }
+
+    private static func normalizedDate(
+        _ date: Date,
+        wake: Date,
+        sleepDay: SleepDay,
+        calendar: Calendar
+    ) -> Date {
+        let components = calendar.dateComponents([.year, .month, .day], from: date)
+        let isOnSleepDay = components.year == sleepDay.year
+            && components.month == sleepDay.month
+            && components.day == sleepDay.day
+        if isOnSleepDay, date >= wake {
+            return calendar.date(byAdding: .day, value: -1, to: date) ?? date
+        }
+        return date
     }
 }
 

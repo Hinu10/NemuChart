@@ -57,6 +57,11 @@ struct WeeklyDashboardView: View {
                 }
                 .font(.subheadline)
             }
+            if let score = metrics.weeklyScore {
+                Text(scoreQualityText(score))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
         }
     }
 
@@ -64,22 +69,54 @@ struct WeeklyDashboardView: View {
         let days = chartDays(metrics)
         return GroupBox("睡眠時間") {
             Chart(days) { day in
-                BarMark(
-                    x: .value("日", day.label),
-                    y: .value("時間", day.hours ?? 0.12)
-                )
-                .foregroundStyle(day.hours == nil ? Color.secondary.opacity(0.35) : Color.indigo)
-                .annotation(position: .top) {
-                    Text(day.hours == nil ? "未" : String(format: "%.1f", day.hours!))
-                        .font(.caption2)
+                if let hours = day.hours {
+                    BarMark(
+                        x: .value("日", day.label),
+                        yStart: .value("開始", 0),
+                        yEnd: .value("夜間睡眠", hours)
+                    )
+                    .foregroundStyle(Color.teal)
+                    if day.napHours > 0 {
+                        BarMark(
+                            x: .value("日", day.label),
+                            yStart: .value("夜間睡眠", hours),
+                            yEnd: .value("昼寝込み", hours + day.napHours)
+                        )
+                        .foregroundStyle(Color.orange)
+                    }
+                    BarMark(
+                        x: .value("日", day.label),
+                        yStart: .value("ラベル開始", hours + day.napHours),
+                        yEnd: .value("ラベル終端", hours + day.napHours)
+                    )
+                    .foregroundStyle(.clear)
+                    .annotation(position: .top) {
+                        Text(String(format: "%.1f", hours + day.napHours))
+                            .font(.caption2)
+                    }
+                } else {
+                    BarMark(
+                        x: .value("日", day.label),
+                        y: .value("時間", 0.12)
+                    )
+                    .foregroundStyle(Color.secondary.opacity(0.35))
+                    .annotation(position: .top) {
+                        Text("未")
+                            .font(.caption2)
+                    }
                 }
             }
             .chartYScale(domain: 0...12)
             .frame(height: 220)
             .accessibilityElement(children: .ignore)
             .accessibilityLabel("直近7日間の睡眠時間グラフ")
-            .accessibilityValue(days.map { "\($0.label)は\($0.hours.map { String(format: "%.1f時間", $0) } ?? "記録なし")" }.joined(separator: "、"))
-            Text("紫の棒は記録済み、「未」は記録のない日です。")
+            .accessibilityValue(days.map { day in
+                if let hours = day.hours {
+                    return "\(day.label)は夜間睡眠\(String(format: "%.1f時間", hours))、昼寝\(String(format: "%.1f時間", day.napHours))"
+                }
+                return "\(day.label)は記録なし"
+            }.joined(separator: "、"))
+            Text("青緑は夜間睡眠、オレンジは昼寝です。昼寝はグラフに上積みしますが、点数には加算しません。")
                 .font(.caption).foregroundStyle(.secondary)
         }
     }
@@ -172,6 +209,7 @@ struct WeeklyDashboardView: View {
                 label: date.formatted(.dateTime.weekday(.narrow)),
                 dateLabel: date.formatted(.dateTime.month().day().weekday(.abbreviated)),
                 hours: record.map { $0.sleepDuration / 3600 },
+                napHours: Double(record?.factors.napMinutes ?? 0) / 60,
                 score: score
             )
         }
@@ -215,6 +253,15 @@ struct WeeklyDashboardView: View {
         return "\(minutes / 60)時間\(minutes % 60)分"
     }
     private func percent(_ value: Double) -> String { "\(Int((value * 100).rounded()))%" }
+
+    private func scoreQualityText(_ score: Int) -> String {
+        switch score {
+        case 85...100: "85点以上はとても良い目安です。"
+        case 70..<85: "70点以上は良い目安です。"
+        case 50..<70: "50〜69点は改善の余地があります。"
+        default: "49点以下は休息を優先したい状態です。"
+        }
+    }
 }
 
 private struct ChartDay: Identifiable {
@@ -223,6 +270,7 @@ private struct ChartDay: Identifiable {
     let label: String
     let dateLabel: String
     let hours: Double?
+    let napHours: Double
     let score: DailySleepScore?
 }
 

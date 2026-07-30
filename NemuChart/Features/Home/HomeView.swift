@@ -49,6 +49,7 @@ struct HomeView: View {
                         weeklyGoalCard(weeklyGoal)
                     }
                     greetingHeader
+                    latestScoreCard
                     landscapeCard(isPortrait: rootProxy.size.height >= rootProxy.size.width)
                     if let safetyGuidance { safetyCard(safetyGuidance) }
                     Button {
@@ -184,6 +185,7 @@ struct HomeView: View {
                     .resizable()
                     .scaledToFill()
                     .frame(width: proxy.size.width, height: proxy.size.height)
+                    .offset(y: isCompact ? 18 : 14)
                     .clipped()
                     .overlay(landscapeTint)
                     .accessibilityHidden(true)
@@ -208,6 +210,7 @@ struct HomeView: View {
                     }
                 }
                 .padding(isCompact ? 14 : 16)
+                .padding(.top, isCompact ? 18 : 12)
             }
             .clipShape(RoundedRectangle(cornerRadius: 22))
         }
@@ -271,6 +274,56 @@ struct HomeView: View {
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14))
+    }
+
+    private var latestScoreCard: some View {
+        GroupBox("直近の点数") {
+            if let latest = latestScoredRecord {
+                HStack(alignment: .center, spacing: 16) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(latest.record.sleepDay.key)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        HStack(alignment: .firstTextBaseline, spacing: 4) {
+                            Text("\(latest.score.total)")
+                                .font(.system(size: 38, weight: .bold, design: .rounded))
+                            Text("点")
+                                .foregroundStyle(.secondary)
+                        }
+                        Text(scoreQualityText(latest.score.total))
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    scoreDifferenceView(latest)
+                }
+            } else {
+                Text("記録を保存すると、直近の点数と前回からの変化が表示されます。")
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func scoreDifferenceView(_ latest: HomeScoredRecord) -> some View {
+        if let previous = previousScoredRecord(before: latest.record) {
+            let difference = latest.score.total - previous.score.total
+            VStack(alignment: .trailing, spacing: 6) {
+                Label(
+                    difference == 0 ? "±0点" : "\(difference > 0 ? "+" : "")\(difference)点",
+                    systemImage: scoreDifferenceSymbol(difference)
+                )
+                .font(.headline)
+                .foregroundStyle(scoreDifferenceColor(difference))
+                Text("前回入力日から")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        } else {
+            Text("前回比較なし")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+        }
     }
 
     private var hasRecordForCurrentSleepDay: Bool {
@@ -344,7 +397,7 @@ struct HomeView: View {
                 .resizable()
                 .scaledToFit()
                 .frame(height: height)
-                .offset(y: (includesTerrain ? -20 : 0) + (canMove && sheepAnimating ? -4 : 0))
+                .offset(y: (includesTerrain ? -6 : 16) + (canMove && sheepAnimating ? -4 : 0))
                 .animation(
                     canMove ? .easeInOut(duration: 3.8).repeatForever(autoreverses: true) : nil,
                     value: sheepAnimating
@@ -515,6 +568,45 @@ struct HomeView: View {
         return minutes % 60 == 0 ? "\(minutes / 60)時間" : "\(minutes / 60)時間\(minutes % 60)分"
     }
 
+    private var latestScoredRecord: HomeScoredRecord? {
+        scoredRecords.sorted { $0.record.sleepDay > $1.record.sleepDay }.first
+    }
+
+    private var scoredRecords: [HomeScoredRecord] {
+        records.compactMap { record in
+            guard let score = try? dependencies.scoringService.score(record: record, settings: settings) else { return nil }
+            return HomeScoredRecord(record: record, score: score)
+        }
+    }
+
+    private func previousScoredRecord(before latest: SleepRecord) -> HomeScoredRecord? {
+        scoredRecords
+            .filter { $0.record.sleepDay < latest.sleepDay }
+            .sorted { $0.record.sleepDay > $1.record.sleepDay }
+            .first
+    }
+
+    private func scoreQualityText(_ score: Int) -> String {
+        switch score {
+        case 85...100: "とても良い目安"
+        case 70..<85: "良い目安"
+        case 50..<70: "改善の余地あり"
+        default: "休息を優先したい状態"
+        }
+    }
+
+    private func scoreDifferenceSymbol(_ difference: Int) -> String {
+        if difference > 0 { return "arrow.up.circle.fill" }
+        if difference < 0 { return "arrow.down.circle.fill" }
+        return "minus.circle.fill"
+    }
+
+    private func scoreDifferenceColor(_ difference: Int) -> Color {
+        if difference > 0 { return .green }
+        if difference < 0 { return .orange }
+        return .secondary
+    }
+
     private func openRecording(for choice: HomeRecordDayChoice) {
         do {
             let sleepDay = try sleepDay(for: choice)
@@ -663,6 +755,11 @@ private struct HomeRecordingRoute: Identifiable {
     let id = UUID()
     var initialRecord: SleepRecord?
     var initialDraft: SleepRecordDraft?
+}
+
+private struct HomeScoredRecord {
+    let record: SleepRecord
+    let score: DailySleepScore
 }
 
 private enum HomeRecordDayChoice: Int, CaseIterable, Identifiable {

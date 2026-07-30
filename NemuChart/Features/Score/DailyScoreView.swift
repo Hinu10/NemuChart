@@ -31,6 +31,19 @@ struct DailyScoreView: View {
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel("日次睡眠スコア \(score.total)点")
 
+                GroupBox("点数の目安") {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(scoreQualityText(score.total))
+                            .font(.headline)
+                        Text("85点以上: とても良い / 70〜84点: 良い / 50〜69点: 改善の余地あり / 49点以下: 休息を優先")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .frame(maxWidth: .infinity)
+
                 GroupBox("内訳") {
                     ForEach(score.components, id: \.kind) { component in
                         LabeledContent(component.kind.displayName, value: "\(component.points) / \(component.possiblePoints)")
@@ -90,6 +103,15 @@ struct DailyScoreView: View {
     }
 
     private func signed(_ value: Int) -> String { value > 0 ? "+\(value)点" : "\(value)点" }
+
+    private func scoreQualityText(_ score: Int) -> String {
+        switch score {
+        case 85...100: "とても良い目安です"
+        case 70..<85: "良い目安です"
+        case 50..<70: "改善の余地があります"
+        default: "休息を優先したい状態です"
+        }
+    }
 }
 
 private extension ScoreComponent.Kind {
