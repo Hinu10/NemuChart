@@ -93,7 +93,7 @@ struct SettingsView: View {
                 }
                 Section("注意事項") {
                     Text("睡眠スコアは、入力内容と個人目標を比べるための参考値です。医療上の評価ではありません。")
-                    Text("NemuChartは診断や治療を行いません。強い眠気などが続いて気になる場合は、医療機関などへの相談を検討してください。記録は端末内に保存し、外部へ送信しません。")
+                    Text("ねむちゃーとは診断や治療を行いません。強い眠気などが続いて気になる場合は、医療機関などへの相談を検討してください。記録は端末内に保存し、外部へ送信しません。")
                     if !saveStatus.isEmpty {
                         Label(saveStatus, systemImage: saveStatus == "保存済み" ? "checkmark.circle" : "exclamationmark.triangle")
                             .font(.footnote)

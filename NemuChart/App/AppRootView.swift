@@ -14,7 +14,7 @@ struct AppRootView: View {
                         .resizable()
                         .scaledToFit()
                         .frame(maxWidth: 330)
-                        .accessibilityLabel("NemuChart")
+                        .accessibilityLabel("ねむちゃーと")
                     ProgressView("読み込んでいます")
                 }
                 .padding(28)

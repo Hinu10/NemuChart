@@ -22,6 +22,8 @@ struct HomeView: View {
     @State private var safetyGuidance: SafetyGuidance?
     @State private var loadError: String?
     @State private var sheepAnimating = false
+    @State private var carouselSelection = HomeCarouselCard.greeting
+    private let carouselTimer = Timer.publish(every: 4.5, on: .main, in: .common).autoconnect()
 
     private var period: HomeTimeOfDay { TimeOfDayPolicy().period(at: now) }
     private var vitality: Vitality { dependencies.vitalityService.vitality(scores: scores) }
@@ -44,12 +46,8 @@ struct HomeView: View {
                         .frame(maxWidth: 300)
                         .frame(maxWidth: .infinity, alignment: .center)
                         .frame(height: 64)
-                        .accessibilityLabel("NemuChart")
-                    if let weeklyGoal = preferenceData.weeklyGoal {
-                        weeklyGoalCard(weeklyGoal)
-                    }
-                    greetingHeader
-                    latestScoreCard
+                        .accessibilityLabel("ねむちゃーと")
+                    topSummaryCarousel
                     landscapeCard(isPortrait: rootProxy.size.height >= rootProxy.size.width)
                     if let safetyGuidance { safetyCard(safetyGuidance) }
                     Button {
@@ -60,25 +58,6 @@ struct HomeView: View {
                     }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.large)
-                    if period == .morning {
-                        if hasRecordForCurrentSleepDay {
-                            Label("今日の睡眠日は記録済みです。修正は「記録する」から今日を選んでください。", systemImage: "checkmark.circle.fill")
-                                .font(.subheadline)
-                                .foregroundStyle(.green)
-                        } else {
-                            Text("前夜の睡眠を、覚えている範囲で記録しましょう。")
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                        }
-                    } else if period == .daytime || period == .evening {
-                        GroupBox("今日の目安") {
-                            Text(sleepDurationGuidance)
-                        }
-                    } else {
-                        Text("記録は明日の朝に。いまは端末を置いて、ゆっくり休みましょう。")
-                            .padding()
-                            .background(.indigo.opacity(0.1), in: RoundedRectangle(cornerRadius: 16))
-                    }
                     Button {
                         showingWeekly = true
                     } label: {
@@ -171,6 +150,64 @@ struct HomeView: View {
         .alert("データを読み込めませんでした", isPresented: Binding(
             get: { loadError != nil }, set: { if !$0 { loadError = nil } }
         )) { Button("OK", role: .cancel) {} } message: { Text(loadError ?? "") }
+        .onReceive(carouselTimer) { _ in advanceCarousel() }
+    }
+
+    private var topSummaryCarousel: some View {
+        let cards = availableCarouselCards
+        return TabView(selection: $carouselSelection) {
+            ForEach(cards) { card in
+                carouselCard(card)
+                    .tag(card)
+                    .padding(.horizontal, 1)
+            }
+        }
+        .tabViewStyle(.page(indexDisplayMode: .automatic))
+        .frame(height: 196)
+        .onAppear { normalizeCarouselSelection(for: cards) }
+        .onChange(of: preferenceData.weeklyGoal?.id) { _, _ in
+            normalizeCarouselSelection(for: availableCarouselCards)
+        }
+        .accessibilityElement(children: .contain)
+    }
+
+    private var availableCarouselCards: [HomeCarouselCard] {
+        if preferenceData.weeklyGoal == nil {
+            return [.greeting, .latestScore, .guidance]
+        }
+        return [.weeklyGoal, .greeting, .latestScore, .guidance]
+    }
+
+    @ViewBuilder
+    private func carouselCard(_ card: HomeCarouselCard) -> some View {
+        switch card {
+        case .weeklyGoal:
+            if let weeklyGoal = preferenceData.weeklyGoal {
+                weeklyGoalCard(weeklyGoal)
+            }
+        case .greeting:
+            greetingHeader
+        case .latestScore:
+            latestScoreCard
+        case .guidance:
+            todayGuidanceCard
+        }
+    }
+
+    private func advanceCarousel() {
+        let cards = availableCarouselCards
+        guard cards.count > 1 else { return }
+        let currentIndex = cards.firstIndex(of: carouselSelection) ?? 0
+        withAnimation(.easeInOut(duration: 0.45)) {
+            carouselSelection = cards[(currentIndex + 1) % cards.count]
+        }
+    }
+
+    private func normalizeCarouselSelection(for cards: [HomeCarouselCard]) {
+        guard let first = cards.first else { return }
+        if !cards.contains(carouselSelection) {
+            carouselSelection = first
+        }
     }
 
     private func landscapeCard(isPortrait: Bool) -> some View {
@@ -185,11 +222,11 @@ struct HomeView: View {
                     .resizable()
                     .scaledToFill()
                     .frame(width: proxy.size.width, height: proxy.size.height)
-                    .offset(y: isCompact ? 18 : 14)
+                    .offset(y: isCompact ? 22 : 14)
                     .clipped()
                     .overlay(landscapeTint)
                     .accessibilityHidden(true)
-                VStack(spacing: isCompact ? 10 : 14) {
+                VStack(spacing: isCompact ? 12 : 14) {
                     HStack {
                         Image(systemName: period.symbol)
                         Spacer()
@@ -200,8 +237,8 @@ struct HomeView: View {
                     .shadow(radius: 3)
                     .accessibilityHidden(true)
                     if isCompact {
-                        animatedSheep(height: 168, includesTerrain: false, canMove: true)
-                            .padding(.top, 16)
+                        animatedSheep(height: 148, includesTerrain: true, canMove: true)
+                            .padding(.top, 2)
                         Spacer(minLength: 0)
                         compactLandscapeSummary
                     } else {
@@ -210,11 +247,11 @@ struct HomeView: View {
                     }
                 }
                 .padding(isCompact ? 14 : 16)
-                .padding(.top, isCompact ? 18 : 12)
+                .padding(.top, isCompact ? 12 : 12)
             }
             .clipShape(RoundedRectangle(cornerRadius: 22))
         }
-        .frame(height: isCompact ? 450 : 360)
+        .frame(height: isCompact ? 392 : 360)
         .clipShape(RoundedRectangle(cornerRadius: 22))
         .onAppear { sheepAnimating = true }
     }
@@ -304,6 +341,30 @@ struct HomeView: View {
         }
     }
 
+    private var todayGuidanceCard: some View {
+        GroupBox(todayGuidanceTitle) {
+            VStack(alignment: .leading, spacing: 10) {
+                if period == .morning, hasRecordForCurrentSleepDay {
+                    Label("今日の睡眠日は記録済みです", systemImage: "checkmark.circle.fill")
+                        .font(.headline)
+                        .foregroundStyle(.green)
+                    Text("修正は「記録する」から今日を選んでください。")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Label(todayGuidanceHeadline, systemImage: todayGuidanceSymbol)
+                        .font(.headline)
+                        .foregroundStyle(period.accentColor)
+                    Text(todayGuidanceMessage)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
     @ViewBuilder
     private func scoreDifferenceView(_ latest: HomeScoredRecord) -> some View {
         if let previous = previousScoredRecord(before: latest.record) {
@@ -352,6 +413,43 @@ struct HomeView: View {
         return "快眠の基準は \(durationText(settings.desiredSleepDuration))です。今夜の目標は後から設定できます。"
     }
 
+    private var todayGuidanceTitle: String {
+        switch period {
+        case .morning: "今日の記録"
+        case .daytime, .evening: "今日の目安"
+        case .night: "休息の目安"
+        }
+    }
+
+    private var todayGuidanceHeadline: String {
+        switch period {
+        case .morning: "前夜の睡眠を記録"
+        case .daytime: "今夜の目安"
+        case .evening: "そろそろ休む準備"
+        case .night: "いまは休息を優先"
+        }
+    }
+
+    private var todayGuidanceMessage: String {
+        switch period {
+        case .morning:
+            return "前夜の睡眠を、覚えている範囲で記録しましょう。"
+        case .daytime, .evening:
+            return sleepDurationGuidance
+        case .night:
+            return "記録は明日の朝に。いまは端末を置いて、ゆっくり休みましょう。"
+        }
+    }
+
+    private var todayGuidanceSymbol: String {
+        switch period {
+        case .morning: "square.and.pencil"
+        case .daytime: "target"
+        case .evening: "bed.double.fill"
+        case .night: "moon.zzz.fill"
+        }
+    }
+
     private var regularLandscapeSummary: some View {
         VStack(spacing: 10) {
             ViewThatFits(in: .horizontal) {
@@ -397,7 +495,7 @@ struct HomeView: View {
                 .resizable()
                 .scaledToFit()
                 .frame(height: height)
-                .offset(y: (includesTerrain ? -6 : 16) + (canMove && sheepAnimating ? -4 : 0))
+                .offset(y: (includesTerrain ? -12 : 16) + (canMove && sheepAnimating ? -4 : 0))
                 .animation(
                     canMove ? .easeInOut(duration: 3.8).repeatForever(autoreverses: true) : nil,
                     value: sheepAnimating
@@ -407,7 +505,7 @@ struct HomeView: View {
             }
         }
         .frame(maxWidth: .infinity)
-        .frame(height: includesTerrain ? 232 : max(height + 28, 164))
+        .frame(height: includesTerrain ? max(height + 58, 206) : max(height + 28, 164))
         .accessibilityLabel("羊は\(vitality.displayName)状態です")
     }
 
@@ -760,6 +858,15 @@ private struct HomeRecordingRoute: Identifiable {
 private struct HomeScoredRecord {
     let record: SleepRecord
     let score: DailySleepScore
+}
+
+private enum HomeCarouselCard: CaseIterable, Identifiable {
+    case weeklyGoal
+    case greeting
+    case latestScore
+    case guidance
+
+    var id: Self { self }
 }
 
 private enum HomeRecordDayChoice: Int, CaseIterable, Identifiable {

@@ -49,7 +49,7 @@ struct OnboardingView: View {
                     .font(.largeTitle.bold())
                 Text("毎朝の入力から、あなた自身の目標と比べた参考スコアを表示します。")
                 GroupBox("大切なお知らせ") {
-                    Text("NemuChartは医療機器ではなく、診断や治療を行いません。気になる症状が続く場合は、医療機関への相談を検討してください。")
+                    Text("ねむちゃーとは医療機器ではなく、診断や治療を行いません。気になる症状が続く場合は、医療機関への相談を検討してください。")
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)

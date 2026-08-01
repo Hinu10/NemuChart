@@ -301,7 +301,7 @@
 				DEVELOPMENT_TEAM = G6HG9QH7P8;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = NemuChart;
+				INFOPLIST_KEY_CFBundleDisplayName = "ねむちゃーと";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -326,7 +326,7 @@
 				DEVELOPMENT_TEAM = G6HG9QH7P8;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = NemuChart;
+				INFOPLIST_KEY_CFBundleDisplayName = "ねむちゃーと";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;

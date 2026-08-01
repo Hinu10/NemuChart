@@ -21,6 +21,7 @@ struct WeeklyDashboardView: View {
                             dailyScores(metrics)
                             scoreBreakdown(metrics)
                             sleepChart(metrics)
+                            sleepDurationTable(metrics)
                             metricGrid(metrics)
                             confidenceCard(metrics.confidence)
                             comfortCard
@@ -140,6 +141,45 @@ struct WeeklyDashboardView: View {
             }
         }
         .accessibilityElement(children: .contain)
+    }
+
+    private func sleepDurationTable(_ metrics: WeeklyMetrics) -> some View {
+        let days = chartDays(metrics)
+        return GroupBox("日ごとの睡眠時間") {
+            VStack(spacing: 0) {
+                HStack {
+                    Text("日付")
+                    Spacer()
+                    Text("睡眠時間")
+                        .frame(width: 92, alignment: .trailing)
+                    Text("昼寝込み")
+                        .frame(width: 92, alignment: .trailing)
+                }
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .padding(.bottom, 8)
+
+                ForEach(days) { day in
+                    HStack(alignment: .firstTextBaseline) {
+                        Text(day.dateLabel)
+                            .font(.subheadline)
+                        Spacer()
+                        Text(day.hours.map(hoursText) ?? "未記録")
+                            .font(.subheadline)
+                            .foregroundStyle(day.hours == nil ? .secondary : .primary)
+                            .frame(width: 92, alignment: .trailing)
+                        Text(day.totalHours.map(hoursText) ?? "未記録")
+                            .font(.subheadline.weight(day.totalHours == nil ? .regular : .semibold))
+                            .foregroundStyle(day.totalHours == nil ? .secondary : .primary)
+                            .frame(width: 92, alignment: .trailing)
+                    }
+                    .padding(.vertical, 9)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(durationTableAccessibilityText(day))
+                    if day.id != days.last?.id { Divider() }
+                }
+            }
+        }
     }
 
     private func metricGrid(_ metrics: WeeklyMetrics) -> some View {
@@ -273,6 +313,15 @@ struct WeeklyDashboardView: View {
         let minutes = Int(value / 60)
         return "\(minutes / 60)時間\(minutes % 60)分"
     }
+    private func hoursText(_ value: Double) -> String {
+        let minutes = Int((value * 60).rounded())
+        return "\(minutes / 60)時間\(minutes % 60)分"
+    }
+    private func durationTableAccessibilityText(_ day: ChartDay) -> String {
+        let sleep = day.hours.map(hoursText) ?? "未記録"
+        let total = day.totalHours.map(hoursText) ?? "未記録"
+        return "\(day.dateLabel)、睡眠時間\(sleep)、昼寝込み\(total)"
+    }
     private func percent(_ value: Double) -> String { "\(Int((value * 100).rounded()))%" }
 
     private func scoreQualityText(_ score: Int) -> String {
@@ -295,6 +344,10 @@ private struct ChartDay: Identifiable {
     let score: DailySleepScore?
 
     var hasSleepOrNap: Bool { hours != nil || napHours > 0 }
+    var totalHours: Double? {
+        guard hasSleepOrNap else { return nil }
+        return (hours ?? 0) + napHours
+    }
 }
 
 private extension ScoreComponent.Kind {
