@@ -245,16 +245,7 @@ struct HomeView: View {
     private func landscapeCardContent(isCompact: Bool) -> some View {
         GeometryReader { proxy in
             ZStack {
-                Color.cyan.opacity(0.12)
-                    .accessibilityHidden(true)
-                Image("sheep-landscape")
-                    .resizable()
-                    .scaledToFill()
-                    .frame(width: proxy.size.width, height: proxy.size.height)
-                    .blur(radius: 18)
-                    .opacity(0.45)
-                    .clipped()
-                    .accessibilityHidden(true)
+                landscapeBackdrop
                 Image("sheep-landscape")
                     .resizable()
                     .scaledToFit()
@@ -290,6 +281,31 @@ struct HomeView: View {
         .frame(height: isCompact ? 520 : 360)
         .clipShape(RoundedRectangle(cornerRadius: 22))
         .onAppear { sheepAnimating = true }
+    }
+
+    private var landscapeBackdrop: some View {
+        ZStack {
+            LinearGradient(
+                colors: [
+                    Color(red: 0.15, green: 0.44, blue: 0.78),
+                    Color(red: 0.46, green: 0.75, blue: 0.92),
+                    Color(red: 0.99, green: 0.78, blue: 0.58),
+                    Color(red: 0.38, green: 0.76, blue: 0.64)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            LinearGradient(
+                colors: [
+                    .clear,
+                    Color.white.opacity(0.18),
+                    Color.mint.opacity(0.22)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        }
+        .accessibilityHidden(true)
     }
 
     private var greetingHeader: some View {

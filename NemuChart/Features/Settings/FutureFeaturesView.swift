@@ -3,24 +3,35 @@ import UniformTypeIdentifiers
 
 struct FutureFeaturesView: View {
     let dependencies: AppDependencies
+    @ObservedObject private var premium: PremiumEntitlementService
+    @State private var errorMessage: String?
+
+    init(dependencies: AppDependencies) {
+        self.dependencies = dependencies
+        premium = dependencies.premiumEntitlementService
+    }
 
     var body: some View {
         List {
-            Section("試験提供") {
-                NavigationLink("アラーム体験の設定") {
-                    AlarmExperienceView(preferences: dependencies.preferences)
+            if premium.hasPremiumAccess {
+                Section("試験提供") {
+                    NavigationLink("アラーム体験の設定") {
+                        AlarmExperienceView(preferences: dependencies.preferences)
+                    }
+                    NavigationLink("生活要因の傾向") {
+                        LifestyleInsightsView(dependencies: dependencies)
+                    }
+                    NavigationLink("1か月分析") {
+                        LongTermReportsView(dependencies: dependencies)
+                    }
                 }
-                NavigationLink("生活要因の傾向") {
-                    LifestyleInsightsView(dependencies: dependencies)
+                Section("データ") {
+                    NavigationLink("CSV / JSONを書き出す") {
+                        DataExportView(dependencies: dependencies)
+                    }
                 }
-                NavigationLink("1か月分析（プレミアム）") {
-                    LongTermReportsView(dependencies: dependencies)
-                }
-            }
-            Section("データ") {
-                NavigationLink("CSV / JSONを書き出す") {
-                    DataExportView(dependencies: dependencies)
-                }
+            } else {
+                premiumLockedContent
             }
             Section {
                 Text("表示する分析は自己入力から計算した参考情報です。測定、診断、因果関係の判定ではありません。")
@@ -28,6 +39,38 @@ struct FutureFeaturesView: View {
             }
         }
         .navigationTitle("追加機能")
+        .task { await premium.refresh() }
+        .alert("購入を完了できませんでした", isPresented: Binding(
+            get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } }
+        )) { Button("OK", role: .cancel) {} } message: { Text(errorMessage ?? "") }
+    }
+
+    private var premiumLockedContent: some View {
+        Section("プレミアム") {
+            Label("追加機能はロックされています", systemImage: "lock.fill")
+                .font(.headline)
+            Text("月ごとの分析、生活要因の傾向、アラーム体験、CSV / JSON書き出しをまとめて利用できます。")
+            if let product = premium.product {
+                Button("\(product.displayPrice)で購入する") { Task { await purchase() } }
+                    .buttonStyle(.borderedProminent)
+            } else if premium.isLoading {
+                ProgressView("購入情報を確認しています")
+            } else {
+                Text("購入情報を取得できませんでした。時間をおいて再度お試しください。")
+                    .foregroundStyle(.secondary)
+            }
+            Button("購入を復元") { Task { await restore() } }
+        }
+    }
+
+    private func purchase() async {
+        do { try await premium.purchase() }
+        catch { errorMessage = error.localizedDescription }
+    }
+
+    private func restore() async {
+        do { try await premium.restore() }
+        catch { errorMessage = error.localizedDescription }
     }
 }
 

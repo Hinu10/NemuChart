@@ -19,6 +19,7 @@ struct SettingsView: View {
     @State private var saveTask: Task<Void, Never>?
     @State private var hasPendingChanges = false
     @State private var inferredEstimate: ComfortableDurationEstimate?
+    @State private var showingWeeklyGoal = false
 
     init(
         dependencies: AppDependencies,
@@ -81,10 +82,26 @@ struct SettingsView: View {
                     Text("目標ベッド時刻の30分前に、端末を置くための案内を1件予約します。通知の配信は保証されません。初期状態はOFFです。")
                         .font(.footnote).foregroundStyle(.secondary)
                 }
-                Section("追加機能") {
-                    NavigationLink("分析・アラーム・書き出し") {
-                        FutureFeaturesView(dependencies: dependencies)
+                Section("今週の目標") {
+                    Button {
+                        saveIfNeeded()
+                        showingWeeklyGoal = true
+                    } label: {
+                        Label("今週の目標を設定", systemImage: "flag.checkered")
                     }
+                    Text("記録、起床時刻、睡眠時間などから今週の目標を1つ選べます。")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+                Section("追加機能") {
+                    NavigationLink {
+                        FutureFeaturesView(dependencies: dependencies)
+                    } label: {
+                        Label("追加機能", systemImage: "lock.fill")
+                    }
+                    Text("分析・アラーム・書き出しはプレミアムで利用できます。")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
                 }
                 Section("データ管理") {
                     Button("すべてのデータを削除", role: .destructive) { showingDeleteConfirmation = true }
@@ -132,6 +149,16 @@ struct SettingsView: View {
         .alert("操作を完了できませんでした", isPresented: Binding(
             get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } }
         )) { Button("OK", role: .cancel) {} } message: { Text(errorMessage ?? "") }
+        .sheet(isPresented: $showingWeeklyGoal) {
+            WeeklyGoalView(
+                repository: dependencies.sleepRecordRepository,
+                sleepGoalRepository: dependencies.sleepGoalRepository,
+                preferences: dependencies.preferences,
+                progressService: dependencies.weeklyGoalProgressService,
+                settings: settings,
+                proposedWeekStart: nil
+            )
+        }
     }
 
     private func scheduleSave() {
