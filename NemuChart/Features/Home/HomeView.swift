@@ -558,7 +558,42 @@ struct HomeView: View {
         }
         .frame(maxWidth: .infinity)
         .frame(height: includesTerrain ? max(height + 48, 184) : max(height + 28, 164))
+        .background {
+            if includesTerrain { sheepStageBackdrop }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: includesTerrain ? 20 : 0, style: .continuous))
+        .overlay(alignment: .bottom) {
+            if includesTerrain { sheepStageBottomBlend }
+        }
         .accessibilityLabel("羊は\(vitality.displayName)状態です")
+    }
+
+    private var sheepStageBackdrop: some View {
+        LinearGradient(
+            colors: [
+                Color.white.opacity(0.18),
+                Color(red: 0.62, green: 0.88, blue: 0.78).opacity(0.26),
+                Color(red: 0.36, green: 0.75, blue: 0.63).opacity(0.34)
+            ],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+        .accessibilityHidden(true)
+    }
+
+    private var sheepStageBottomBlend: some View {
+        LinearGradient(
+            colors: [
+                .clear,
+                Color(red: 0.50, green: 0.82, blue: 0.68).opacity(0.30),
+                Color(red: 0.34, green: 0.72, blue: 0.61).opacity(0.48)
+            ],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+        .frame(height: 58)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 
     private var sheepTerrain: some View {
