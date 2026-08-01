@@ -121,7 +121,7 @@ struct SleepRecordFlow: View {
             }
 
             if draft.inputKind == .slept {
-                Section("必須項目（3項目）") {
+                Section("必須項目") {
                     DatePicker("起床日時", selection: $draft.wakeTime)
                     DatePicker("寝た日時", selection: $draft.sleepClock)
                     Picker("起床時のスッキリ度", selection: $draft.freshness) {
@@ -134,20 +134,13 @@ struct SleepRecordFlow: View {
                 Section("任意の睡眠詳細・生活要因") {
                     OptionalIntPicker(title: "中途覚醒", value: $draft.awakeningCount, range: 0...10, unit: "回")
                     OptionalIntPicker(title: "スヌーズ", value: $draft.snoozeCount, range: 0...10, unit: "回")
-                    OptionalIntPicker(title: "二度寝", value: $draft.secondSleepMinutes, values: [0, 10, 20, 30, 45, 60, 90, 120], unit: "分")
                     OptionalIntPicker(title: "昨日の昼寝", value: $draft.napMinutes, values: [0, 10, 20, 30, 45, 60, 90, 120], unit: "分")
                     OptionalBoolPicker(title: "飲酒", value: $draft.consumedAlcohol, trueLabel: "あり", falseLabel: "なし")
                     OptionalBoolPicker(title: "カフェイン", value: $draft.consumedCaffeine, trueLabel: "摂取した", falseLabel: "摂取していない")
-                    Toggle("スマートフォン終了時刻を記録", isOn: Binding(
-                        get: { draft.smartphoneEndTime != nil },
-                        set: { draft.smartphoneEndTime = $0 ? draft.sleepClock : nil }
+                    DatePicker("スマートフォン終了日時", selection: Binding(
+                        get: { draft.smartphoneEndTime ?? draft.sleepClock },
+                        set: { draft.smartphoneEndTime = $0 }
                     ))
-                    if draft.smartphoneEndTime != nil {
-                        DatePicker("スマートフォン終了日時", selection: Binding(
-                            get: { draft.smartphoneEndTime ?? draft.sleepClock },
-                            set: { draft.smartphoneEndTime = $0 }
-                        ))
-                    }
                     OptionalRatingPicker(title: "ストレス", value: $draft.stress)
                     OptionalRatingPicker(title: "快適さ", value: $draft.comfort)
                     OptionalBoolPicker(title: "いびきの指摘", value: $draft.reportedSnoring, trueLabel: "指摘あり", falseLabel: "なし")

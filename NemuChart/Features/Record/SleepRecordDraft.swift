@@ -42,6 +42,7 @@ struct SleepRecordDraft {
         wakeTime = now
         bedClock = calendar.date(byAdding: .hour, value: -8, to: now) ?? now
         sleepClock = calendar.date(byAdding: .hour, value: -7, to: now) ?? now
+        smartphoneEndTime = sleepClock
     }
 
     init(record: SleepRecord) {
@@ -56,7 +57,7 @@ struct SleepRecordDraft {
         napMinutes = record.factors.napMinutes
         consumedAlcohol = record.factors.consumedAlcohol
         consumedCaffeine = record.factors.consumedCaffeine
-        smartphoneEndTime = record.factors.smartphoneEndTime
+        smartphoneEndTime = record.factors.smartphoneEndTime ?? record.sleepStart
         stress = record.factors.stress
         comfort = record.factors.comfort
         reportedSnoring = record.factors.reportedSnoring

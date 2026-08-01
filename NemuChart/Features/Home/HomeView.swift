@@ -155,15 +155,18 @@ struct HomeView: View {
 
     private var topSummaryCarousel: some View {
         let cards = availableCarouselCards
-        return TabView(selection: $carouselSelection) {
-            ForEach(cards) { card in
-                carouselCard(card)
-                    .tag(card)
-                    .padding(.horizontal, 1)
+        return VStack(spacing: 8) {
+            TabView(selection: $carouselSelection) {
+                ForEach(cards) { card in
+                    carouselCard(card)
+                        .tag(card)
+                        .padding(.horizontal, 1)
+                }
             }
+            .tabViewStyle(.page(indexDisplayMode: .never))
+            .frame(height: 196)
+            carouselPageButtons(cards)
         }
-        .tabViewStyle(.page(indexDisplayMode: .automatic))
-        .frame(height: 196)
         .onAppear { normalizeCarouselSelection(for: cards) }
         .onChange(of: preferenceData.weeklyGoal?.id) { _, _ in
             normalizeCarouselSelection(for: availableCarouselCards)
@@ -172,9 +175,6 @@ struct HomeView: View {
     }
 
     private var availableCarouselCards: [HomeCarouselCard] {
-        if preferenceData.weeklyGoal == nil {
-            return [.greeting, .latestScore, .guidance]
-        }
         return [.weeklyGoal, .greeting, .latestScore, .guidance]
     }
 
@@ -184,6 +184,8 @@ struct HomeView: View {
         case .weeklyGoal:
             if let weeklyGoal = preferenceData.weeklyGoal {
                 weeklyGoalCard(weeklyGoal)
+            } else {
+                weeklyGoalPlaceholderCard
             }
         case .greeting:
             greetingHeader
@@ -192,6 +194,31 @@ struct HomeView: View {
         case .guidance:
             todayGuidanceCard
         }
+    }
+
+    private func carouselPageButtons(_ cards: [HomeCarouselCard]) -> some View {
+        HStack(spacing: 10) {
+            ForEach(cards) { card in
+                Button {
+                    withAnimation(.easeInOut(duration: 0.35)) {
+                        carouselSelection = card
+                    }
+                } label: {
+                    Circle()
+                        .fill(card == carouselSelection ? Color.accentColor : Color.secondary.opacity(0.28))
+                        .frame(width: card == carouselSelection ? 10 : 8, height: card == carouselSelection ? 10 : 8)
+                        .overlay {
+                            Circle()
+                                .stroke(Color.accentColor.opacity(card == carouselSelection ? 0.28 : 0), lineWidth: 5)
+                        }
+                }
+                .buttonStyle(.plain)
+                .frame(width: 28, height: 28)
+                .accessibilityLabel("\(card.accessibilityTitle)へ移動")
+                .accessibilityAddTraits(card == carouselSelection ? [.isSelected] : [])
+            }
+        }
+        .frame(maxWidth: .infinity)
     }
 
     private func advanceCarousel() {
@@ -218,12 +245,21 @@ struct HomeView: View {
     private func landscapeCardContent(isCompact: Bool) -> some View {
         GeometryReader { proxy in
             ZStack {
+                Color.cyan.opacity(0.12)
+                    .accessibilityHidden(true)
                 Image("sheep-landscape")
                     .resizable()
                     .scaledToFill()
                     .frame(width: proxy.size.width, height: proxy.size.height)
-                    .offset(y: isCompact ? 22 : 14)
+                    .blur(radius: 18)
+                    .opacity(0.45)
                     .clipped()
+                    .accessibilityHidden(true)
+                Image("sheep-landscape")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: proxy.size.width, height: proxy.size.height, alignment: .top)
+                    .offset(y: isCompact ? 16 : 8)
                     .overlay(landscapeTint)
                     .accessibilityHidden(true)
                 VStack(spacing: isCompact ? 12 : 14) {
@@ -237,7 +273,7 @@ struct HomeView: View {
                     .shadow(radius: 3)
                     .accessibilityHidden(true)
                     if isCompact {
-                        animatedSheep(height: 148, includesTerrain: true, canMove: true)
+                        animatedSheep(height: 136, includesTerrain: true, canMove: true)
                             .padding(.top, 2)
                         Spacer(minLength: 0)
                         compactLandscapeSummary
@@ -251,7 +287,7 @@ struct HomeView: View {
             }
             .clipShape(RoundedRectangle(cornerRadius: 22))
         }
-        .frame(height: isCompact ? 392 : 360)
+        .frame(height: isCompact ? 520 : 360)
         .clipShape(RoundedRectangle(cornerRadius: 22))
         .onAppear { sheepAnimating = true }
     }
@@ -473,7 +509,7 @@ struct HomeView: View {
             growthSummary
             weeklyProgressSummary
         }
-        .font(.subheadline)
+        .font(.footnote)
         .frame(maxWidth: .infinity)
     }
 
@@ -505,7 +541,7 @@ struct HomeView: View {
             }
         }
         .frame(maxWidth: .infinity)
-        .frame(height: includesTerrain ? max(height + 58, 206) : max(height + 28, 164))
+        .frame(height: includesTerrain ? max(height + 48, 184) : max(height + 28, 164))
         .accessibilityLabel("羊は\(vitality.displayName)状態です")
     }
 
@@ -574,6 +610,27 @@ struct HomeView: View {
                     .accessibilityLabel("週間目標の進捗")
                     .accessibilityValue("\(goal.completedCount)回、目標\(goal.targetCount)回")
             }
+        }
+    }
+
+    private var weeklyGoalPlaceholderCard: some View {
+        GroupBox("今週の目標") {
+            VStack(alignment: .leading, spacing: 10) {
+                Label("目標を設定できます", systemImage: "flag.checkered")
+                    .font(.headline)
+                    .foregroundStyle(.secondary)
+                Text("今週の記録目標を決めると、ここで進捗を確認できます。")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Button {
+                    showingWeeklyGoal = true
+                } label: {
+                    Label("目標を設定", systemImage: "plus.circle")
+                }
+                .buttonStyle(.bordered)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
@@ -867,6 +924,15 @@ private enum HomeCarouselCard: CaseIterable, Identifiable {
     case guidance
 
     var id: Self { self }
+
+    var accessibilityTitle: String {
+        switch self {
+        case .weeklyGoal: "今週の目標"
+        case .greeting: "時間帯メッセージ"
+        case .latestScore: "直近の点数"
+        case .guidance: "今日の目安"
+        }
+    }
 }
 
 private enum HomeRecordDayChoice: Int, CaseIterable, Identifiable {
