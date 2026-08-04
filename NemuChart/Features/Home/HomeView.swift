@@ -244,43 +244,66 @@ struct HomeView: View {
 
     private func landscapeCardContent(isCompact: Bool) -> some View {
         GeometryReader { proxy in
+            let cardHeight = isCompact ? HomeLandscapeLayout.compactHeight : HomeLandscapeLayout.regularHeight
+            let artworkHeight = min(
+                cardHeight * (isCompact ? 0.58 : 0.72),
+                max(proxy.size.width * 0.72, isCompact ? 250 : 220)
+            )
+            let sheepHeight = isCompact ? CGFloat(132) : CGFloat(158)
+
             ZStack {
                 landscapeBackdrop
-                Image("sheep-landscape")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: proxy.size.width, height: proxy.size.height, alignment: .top)
-                    .offset(y: isCompact ? 16 : 8)
-                    .overlay(landscapeTint)
-                    .accessibilityHidden(true)
-                VStack(spacing: isCompact ? 12 : 14) {
-                    HStack {
-                        Image(systemName: period.symbol)
-                        Spacer()
-                        Image(systemName: landscape.mood.symbol)
-                    }
-                    .font(.title)
-                    .foregroundStyle(.white)
-                    .shadow(radius: 3)
-                    .accessibilityHidden(true)
+                landscapeArtwork(height: artworkHeight)
+                    .frame(maxHeight: .infinity, alignment: .top)
+
+                VStack(spacing: isCompact ? 10 : 12) {
                     if isCompact {
-                        animatedSheep(height: 136, includesTerrain: true, canMove: true)
-                            .padding(.top, 2)
+                        Spacer(minLength: max(30, artworkHeight * 0.12))
+                        animatedSheep(height: sheepHeight, includesTerrain: true, canMove: true)
                         Spacer(minLength: 0)
                         compactLandscapeSummary
                     } else {
-                        animatedSheep(height: 168, includesTerrain: true, canMove: true)
+                        Spacer(minLength: 8)
+                        animatedSheep(height: sheepHeight, includesTerrain: true, canMove: true)
+                        Spacer(minLength: 8)
                         regularLandscapeSummary
                     }
                 }
-                .padding(isCompact ? 14 : 16)
-                .padding(.top, isCompact ? 12 : 12)
+                .padding(.horizontal, HomeLandscapeLayout.contentPadding)
+                .padding(.top, isCompact ? 10 : 14)
+                .padding(.bottom, HomeLandscapeLayout.contentPadding)
             }
-            .clipShape(RoundedRectangle(cornerRadius: 22))
+            .clipShape(HomeLandscapeLayout.cardShape)
+            .overlay(
+                HomeLandscapeLayout.cardShape
+                    .stroke(.white.opacity(0.42), lineWidth: 1)
+            )
         }
-        .frame(height: isCompact ? 520 : 360)
-        .clipShape(RoundedRectangle(cornerRadius: 22))
+        .frame(height: isCompact ? HomeLandscapeLayout.compactHeight : HomeLandscapeLayout.regularHeight)
         .onAppear { sheepAnimating = true }
+    }
+
+    private func landscapeArtwork(height: CGFloat) -> some View {
+        Image("sheep-landscape")
+            .resizable()
+            .scaledToFill()
+            .frame(maxWidth: .infinity)
+            .frame(height: height, alignment: .top)
+            .clipped()
+            .overlay(landscapeTint)
+            .overlay(alignment: .bottom) {
+                LinearGradient(
+                    colors: [
+                        .clear,
+                        Color(red: 0.67, green: 0.88, blue: 0.82).opacity(0.44),
+                        HomeLandscapeLayout.statusBackground.opacity(0.96)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .frame(height: min(150, height * 0.48))
+            }
+            .accessibilityHidden(true)
     }
 
     private var landscapeBackdrop: some View {
@@ -290,7 +313,8 @@ struct HomeView: View {
                     Color(red: 0.15, green: 0.44, blue: 0.78),
                     Color(red: 0.46, green: 0.75, blue: 0.92),
                     Color(red: 0.99, green: 0.78, blue: 0.58),
-                    Color(red: 0.38, green: 0.76, blue: 0.64)
+                    Color(red: 0.75, green: 0.91, blue: 0.84),
+                    HomeLandscapeLayout.statusBackground
                 ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
@@ -299,7 +323,8 @@ struct HomeView: View {
                 colors: [
                     .clear,
                     Color.white.opacity(0.18),
-                    Color.mint.opacity(0.22)
+                    Color.mint.opacity(0.22),
+                    Color.white.opacity(0.26)
                 ],
                 startPoint: .top,
                 endPoint: .bottom
@@ -342,27 +367,33 @@ struct HomeView: View {
     }
 
     private var sheepStateSummary: some View {
-        VStack(alignment: .leading) {
-            Text("元気度").font(.caption).foregroundStyle(.secondary)
-            Text(vitality.displayName).bold()
+        VStack(alignment: .leading, spacing: 5) {
+            Text("元気度")
+                .font(.system(.caption, design: .rounded, weight: .semibold))
+                .foregroundStyle(HomeLandscapeLayout.headingColor)
+            Text(vitality.displayName)
+                .font(.system(.subheadline, design: .rounded, weight: .bold))
+                .foregroundStyle(HomeLandscapeLayout.bodyColor)
                 .lineLimit(2)
                 .minimumScaleFactor(0.82)
         }
-        .padding(12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14))
+        .fixedSize(horizontal: false, vertical: true)
+        .landscapeStatusCard()
     }
 
     private var growthSummary: some View {
-        VStack(alignment: .leading) {
-            Text("成長").font(.caption).foregroundStyle(.secondary)
-            Text("\(growth.stage.displayName)・\(growth.points.value) pt").bold()
+        VStack(alignment: .leading, spacing: 5) {
+            Text("成長")
+                .font(.system(.caption, design: .rounded, weight: .semibold))
+                .foregroundStyle(HomeLandscapeLayout.headingColor)
+            Text("\(growth.stage.displayName)・\(growth.points.value) pt")
+                .font(.system(.subheadline, design: .rounded, weight: .bold))
+                .foregroundStyle(HomeLandscapeLayout.bodyColor)
                 .lineLimit(2)
                 .minimumScaleFactor(0.82)
         }
-        .padding(12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14))
+        .fixedSize(horizontal: false, vertical: true)
+        .landscapeStatusCard()
     }
 
     private var latestScoreCard: some View {
@@ -503,13 +534,13 @@ struct HomeView: View {
     }
 
     private var regularLandscapeSummary: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: HomeLandscapeLayout.cardSpacing) {
             ViewThatFits(in: .horizontal) {
-                HStack(spacing: 10) {
+                HStack(spacing: HomeLandscapeLayout.cardSpacing) {
                     sheepStateSummary
                     growthSummary
                 }
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: HomeLandscapeLayout.cardSpacing) {
                     sheepStateSummary
                     growthSummary
                 }
@@ -520,7 +551,7 @@ struct HomeView: View {
     }
 
     private var compactLandscapeSummary: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: HomeLandscapeLayout.cardSpacing) {
             sheepStateSummary
             growthSummary
             weeklyProgressSummary
@@ -530,14 +561,48 @@ struct HomeView: View {
     }
 
     private var weeklyProgressSummary: some View {
-        ProgressView(value: Double(weeklyMetrics?.recordedDayCount ?? 0), total: 7) {
-            Text("今週の記録 \(weeklyMetrics?.recordedDayCount ?? 0) / 7日")
-                .lineLimit(1)
-                .minimumScaleFactor(0.82)
+        let recordedDayCount = weeklyMetrics?.recordedDayCount ?? 0
+        let progress = min(max(CGFloat(recordedDayCount) / 7, 0), 1)
+
+        return VStack(alignment: .leading, spacing: 11) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("今週の記録")
+                    .font(.system(.caption, design: .rounded, weight: .semibold))
+                    .foregroundStyle(HomeLandscapeLayout.headingColor)
+                Spacer(minLength: 8)
+                Text("\(recordedDayCount) / 7日")
+                    .font(.system(.subheadline, design: .rounded, weight: .bold))
+                    .foregroundStyle(HomeLandscapeLayout.bodyColor)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.82)
+            }
+            GeometryReader { proxy in
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(Color.white.opacity(0.34))
+                    if progress > 0 {
+                        Capsule()
+                            .fill(
+                                LinearGradient(
+                                    colors: [Color.white.opacity(0.96), Color.mint.opacity(0.78)],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                            .frame(width: min(proxy.size.width, proxy.size.width * progress))
+                    }
+                }
+            }
+            .frame(height: 9)
         }
-        .tint(.white)
-        .padding(12)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14))
+        .padding(.horizontal, HomeLandscapeLayout.statusCardPadding)
+        .padding(.vertical, 15)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.ultraThinMaterial, in: HomeLandscapeLayout.statusCardShape)
+        .overlay(
+            HomeLandscapeLayout.statusCardShape
+                .stroke(.white.opacity(0.36), lineWidth: 1)
+        )
     }
 
     private func animatedSheep(height: CGFloat, includesTerrain: Bool, canMove: Bool) -> some View {
@@ -547,7 +612,7 @@ struct HomeView: View {
                 .resizable()
                 .scaledToFit()
                 .frame(height: height)
-                .offset(y: (includesTerrain ? -12 : 16) + (canMove && sheepAnimating ? -4 : 0))
+                .offset(y: (includesTerrain ? -10 : 16) + (canMove && sheepAnimating ? -4 : 0))
                 .animation(
                     canMove ? .easeInOut(duration: 3.8).repeatForever(autoreverses: true) : nil,
                     value: sheepAnimating
@@ -562,29 +627,36 @@ struct HomeView: View {
     }
 
     private var sheepTerrain: some View {
-        ZStack(alignment: .bottom) {
-            MountainShape()
-                .fill(.teal.opacity(0.28))
-                .frame(width: 250, height: 96)
-                .offset(x: -78, y: -54)
-            MountainShape()
-                .fill(.mint.opacity(0.34))
-                .frame(width: 210, height: 82)
-                .offset(x: 86, y: -44)
-            Ellipse()
-                .fill(
-                    LinearGradient(
-                        colors: [.green.opacity(0.74), .mint.opacity(0.6), .cyan.opacity(0.35)],
-                        startPoint: .bottom,
-                        endPoint: .top
+        GeometryReader { proxy in
+            let width = proxy.size.width
+            let hillWidth = min(width * 1.04, 340)
+            let shadowWidth = min(width * 0.38, 150)
+
+            ZStack(alignment: .bottom) {
+                MountainShape()
+                    .fill(.teal.opacity(0.22))
+                    .frame(width: min(width * 0.72, 230), height: 86)
+                    .offset(x: -width * 0.18, y: -50)
+                MountainShape()
+                    .fill(.mint.opacity(0.28))
+                    .frame(width: min(width * 0.62, 205), height: 76)
+                    .offset(x: width * 0.2, y: -42)
+                Ellipse()
+                    .fill(
+                        LinearGradient(
+                            colors: [.green.opacity(0.58), .mint.opacity(0.46), .cyan.opacity(0.24)],
+                            startPoint: .bottom,
+                            endPoint: .top
+                        )
                     )
-                )
-                .frame(width: 360, height: 112)
-                .offset(y: 36)
-            Ellipse()
-                .fill(.white.opacity(0.18))
-                .frame(width: 190, height: 36)
-                .offset(y: 2)
+                    .frame(width: hillWidth, height: 104)
+                    .offset(y: 34)
+                Ellipse()
+                    .fill(Color.black.opacity(0.1))
+                    .frame(width: shadowWidth, height: 24)
+                    .blur(radius: 8)
+                    .offset(y: -1)
+            }
         }
         .accessibilityHidden(true)
     }
@@ -593,9 +665,9 @@ struct HomeView: View {
         Text("Zzz")
             .font(.system(.title3, design: .rounded, weight: .heavy))
             .foregroundStyle(.white)
-            .shadow(color: .blue.opacity(0.35), radius: 4, y: 2)
-            .offset(x: 64, y: -76)
-            .opacity(0.9)
+            .shadow(color: .blue.opacity(0.42), radius: 4, y: 2)
+            .offset(x: 58, y: -82)
+            .opacity(0.96)
             .accessibilityHidden(true)
     }
 
@@ -965,6 +1037,46 @@ private enum HomeRecordDayChoice: Int, CaseIterable, Identifiable {
         case .yesterday: "昨日"
         case .twoDaysAgo: "一昨日"
         }
+    }
+}
+
+private enum HomeLandscapeLayout {
+    static let compactHeight = CGFloat(500)
+    static let regularHeight = CGFloat(370)
+    static let cornerRadius = CGFloat(22)
+    static let contentPadding = CGFloat(14)
+    static let cardSpacing = CGFloat(9)
+    static let statusCardPadding = CGFloat(13)
+    static let statusBackground = Color(red: 0.88, green: 0.96, blue: 0.91)
+    static let headingColor = Color(red: 0.24, green: 0.42, blue: 0.38)
+    static let bodyColor = Color(red: 0.12, green: 0.20, blue: 0.19)
+
+    static var cardShape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+    }
+
+    static var statusCardShape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: 14, style: .continuous)
+    }
+}
+
+private struct LandscapeStatusCardModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .padding(.horizontal, HomeLandscapeLayout.statusCardPadding)
+            .padding(.vertical, 12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(.ultraThinMaterial, in: HomeLandscapeLayout.statusCardShape)
+            .overlay(
+                HomeLandscapeLayout.statusCardShape
+                    .stroke(.white.opacity(0.36), lineWidth: 1)
+            )
+    }
+}
+
+private extension View {
+    func landscapeStatusCard() -> some View {
+        modifier(LandscapeStatusCardModifier())
     }
 }
 
