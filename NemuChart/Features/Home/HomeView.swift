@@ -37,18 +37,23 @@ struct HomeView: View {
 
     var body: some View {
         GeometryReader { rootProxy in
+            let isShortPortrait = rootProxy.size.height < 720
+            let isMediumPortrait = rootProxy.size.height < 820
+            let contentSpacing = isShortPortrait ? CGFloat(10) : isMediumPortrait ? CGFloat(14) : CGFloat(18)
+            let contentPadding = isShortPortrait ? CGFloat(12) : isMediumPortrait ? CGFloat(14) : CGFloat(16)
+
             NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 24) {
+                VStack(alignment: .leading, spacing: contentSpacing) {
                     Image("NemuChartLogoCropped")
                         .resizable()
                         .scaledToFit()
                         .frame(maxWidth: 300)
                         .frame(maxWidth: .infinity, alignment: .center)
-                        .frame(height: 64)
+                        .frame(height: isShortPortrait ? 42 : isMediumPortrait ? 50 : 56)
                         .accessibilityLabel("ねむちゃーと")
-                    topSummaryCarousel
-                    landscapeCard(isPortrait: rootProxy.size.height >= rootProxy.size.width)
+                    topSummaryCarousel(height: isShortPortrait ? 130 : isMediumPortrait ? 158 : 176)
+                    landscapeCard(viewportSize: rootProxy.size)
                     if let safetyGuidance { safetyCard(safetyGuidance) }
                     Button {
                         showingRecordDayChoices = true
@@ -66,7 +71,7 @@ struct HomeView: View {
                     }
                     .buttonStyle(.bordered)
                 }
-                .padding()
+                .padding(contentPadding)
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
             .navigationTitle("")
@@ -153,7 +158,7 @@ struct HomeView: View {
         .onReceive(carouselTimer) { _ in advanceCarousel() }
     }
 
-    private var topSummaryCarousel: some View {
+    private func topSummaryCarousel(height: CGFloat) -> some View {
         let cards = availableCarouselCards
         return VStack(spacing: 8) {
             TabView(selection: $carouselSelection) {
@@ -164,7 +169,7 @@ struct HomeView: View {
                 }
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
-            .frame(height: 196)
+            .frame(height: height)
             carouselPageButtons(cards)
         }
         .onAppear { normalizeCarouselSelection(for: cards) }
@@ -237,40 +242,45 @@ struct HomeView: View {
         }
     }
 
-    private func landscapeCard(isPortrait: Bool) -> some View {
-        landscapeCardContent(isCompact: isPortrait)
+    private func landscapeCard(viewportSize: CGSize) -> some View {
+        landscapeCardContent(viewportSize: viewportSize)
         .frame(maxWidth: .infinity)
     }
 
-    private func landscapeCardContent(isCompact: Bool) -> some View {
+    private func landscapeCardContent(viewportSize: CGSize) -> some View {
         GeometryReader { proxy in
-            let cardHeight = isCompact ? HomeLandscapeLayout.compactHeight : HomeLandscapeLayout.regularHeight
-            let artworkHeight = min(
-                cardHeight * (isCompact ? 0.58 : 0.72),
-                max(proxy.size.width * 0.72, isCompact ? 250 : 220)
+            let cardHeight = HomeLandscapeLayout.cardHeight(
+                width: proxy.size.width,
+                viewportHeight: viewportSize.height
             )
-            let sheepHeight = isCompact ? CGFloat(132) : CGFloat(158)
+            let isTight = viewportSize.height < 720
+            let artworkHeight = HomeLandscapeLayout.artworkHeight(
+                cardHeight: cardHeight,
+                width: proxy.size.width
+            )
+            let sheepHeight = HomeLandscapeLayout.sheepHeight(
+                cardHeight: cardHeight,
+                viewportHeight: viewportSize.height
+            )
 
             ZStack {
                 landscapeBackdrop
                 landscapeArtwork(height: artworkHeight)
                     .frame(maxHeight: .infinity, alignment: .top)
 
-                VStack(spacing: isCompact ? 10 : 12) {
-                    if isCompact {
-                        Spacer(minLength: max(30, artworkHeight * 0.12))
-                        animatedSheep(height: sheepHeight, includesTerrain: true, canMove: true)
-                        Spacer(minLength: 0)
-                        compactLandscapeSummary
-                    } else {
-                        Spacer(minLength: 8)
-                        animatedSheep(height: sheepHeight, includesTerrain: true, canMove: true)
-                        Spacer(minLength: 8)
-                        regularLandscapeSummary
-                    }
+                VStack(spacing: isTight ? 7 : 9) {
+                    Spacer(minLength: max(18, artworkHeight * 0.08))
+                    animatedSheep(
+                        height: sheepHeight,
+                        includesTerrain: true,
+                        canMove: true,
+                        isTight: isTight
+                    )
+                    Spacer(minLength: 0)
+                    compactLandscapeSummary(isTight: isTight)
                 }
                 .padding(.horizontal, HomeLandscapeLayout.contentPadding)
-                .padding(.top, isCompact ? 10 : 14)
+                .padding(.top, isTight ? 8 : 10)
                 .padding(.bottom, HomeLandscapeLayout.contentPadding)
             }
             .clipShape(HomeLandscapeLayout.cardShape)
@@ -279,7 +289,7 @@ struct HomeView: View {
                     .stroke(.white.opacity(0.42), lineWidth: 1)
             )
         }
-        .frame(height: isCompact ? HomeLandscapeLayout.compactHeight : HomeLandscapeLayout.regularHeight)
+        .frame(height: HomeLandscapeLayout.cardHeight(width: viewportSize.width - 32, viewportHeight: viewportSize.height))
         .onAppear { sheepAnimating = true }
     }
 
@@ -533,38 +543,29 @@ struct HomeView: View {
         }
     }
 
-    private var regularLandscapeSummary: some View {
-        VStack(spacing: HomeLandscapeLayout.cardSpacing) {
+    private func compactLandscapeSummary(isTight: Bool) -> some View {
+        VStack(spacing: isTight ? 7 : HomeLandscapeLayout.cardSpacing) {
             ViewThatFits(in: .horizontal) {
-                HStack(spacing: HomeLandscapeLayout.cardSpacing) {
+                HStack(spacing: isTight ? 7 : HomeLandscapeLayout.cardSpacing) {
                     sheepStateSummary
                     growthSummary
                 }
-                VStack(alignment: .leading, spacing: HomeLandscapeLayout.cardSpacing) {
+                VStack(spacing: isTight ? 7 : HomeLandscapeLayout.cardSpacing) {
                     sheepStateSummary
                     growthSummary
                 }
             }
-            weeklyProgressSummary
-        }
-        .frame(maxWidth: .infinity)
-    }
-
-    private var compactLandscapeSummary: some View {
-        VStack(spacing: HomeLandscapeLayout.cardSpacing) {
-            sheepStateSummary
-            growthSummary
-            weeklyProgressSummary
+            weeklyProgressSummary(isTight: isTight)
         }
         .font(.footnote)
         .frame(maxWidth: .infinity)
     }
 
-    private var weeklyProgressSummary: some View {
+    private func weeklyProgressSummary(isTight: Bool) -> some View {
         let recordedDayCount = weeklyMetrics?.recordedDayCount ?? 0
         let progress = min(max(CGFloat(recordedDayCount) / 7, 0), 1)
 
-        return VStack(alignment: .leading, spacing: 11) {
+        return VStack(alignment: .leading, spacing: isTight ? 8 : 10) {
             HStack(alignment: .firstTextBaseline) {
                 Text("今週の記録")
                     .font(.system(.caption, design: .rounded, weight: .semibold))
@@ -596,7 +597,7 @@ struct HomeView: View {
             .frame(height: 9)
         }
         .padding(.horizontal, HomeLandscapeLayout.statusCardPadding)
-        .padding(.vertical, 15)
+        .padding(.vertical, isTight ? 10 : 12)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(.ultraThinMaterial, in: HomeLandscapeLayout.statusCardShape)
         .overlay(
@@ -605,7 +606,7 @@ struct HomeView: View {
         )
     }
 
-    private func animatedSheep(height: CGFloat, includesTerrain: Bool, canMove: Bool) -> some View {
+    private func animatedSheep(height: CGFloat, includesTerrain: Bool, canMove: Bool, isTight: Bool = false) -> some View {
         ZStack(alignment: .bottom) {
             if includesTerrain { sheepTerrain }
             Image(sheepAssetName)
@@ -622,7 +623,7 @@ struct HomeView: View {
             }
         }
         .frame(maxWidth: .infinity)
-        .frame(height: includesTerrain ? max(height + 48, 184) : max(height + 28, 164))
+        .frame(height: includesTerrain ? max(height + (isTight ? 32 : 40), isTight ? 148 : 164) : max(height + 28, 164))
         .accessibilityLabel("羊は\(vitality.displayName)状態です")
     }
 
@@ -1041,15 +1042,38 @@ private enum HomeRecordDayChoice: Int, CaseIterable, Identifiable {
 }
 
 private enum HomeLandscapeLayout {
-    static let compactHeight = CGFloat(500)
-    static let regularHeight = CGFloat(370)
     static let cornerRadius = CGFloat(22)
-    static let contentPadding = CGFloat(14)
-    static let cardSpacing = CGFloat(9)
-    static let statusCardPadding = CGFloat(13)
+    static let contentPadding = CGFloat(12)
+    static let cardSpacing = CGFloat(8)
+    static let statusCardPadding = CGFloat(12)
     static let statusBackground = Color(red: 0.88, green: 0.96, blue: 0.91)
     static let headingColor = Color(red: 0.24, green: 0.42, blue: 0.38)
     static let bodyColor = Color(red: 0.12, green: 0.20, blue: 0.19)
+
+    static func cardHeight(width: CGFloat, viewportHeight: CGFloat) -> CGFloat {
+        let widthBasedHeight = width * 0.98
+        let heightCap: CGFloat
+        if viewportHeight < 700 {
+            heightCap = 320
+        } else if viewportHeight < 720 {
+            heightCap = 340
+        } else if viewportHeight < 820 {
+            heightCap = 378
+        } else {
+            heightCap = 420
+        }
+        return min(max(widthBasedHeight, 316), heightCap)
+    }
+
+    static func artworkHeight(cardHeight: CGFloat, width: CGFloat) -> CGFloat {
+        min(cardHeight * 0.47, max(width * 0.52, 176))
+    }
+
+    static func sheepHeight(cardHeight: CGFloat, viewportHeight: CGFloat) -> CGFloat {
+        let base = cardHeight * 0.27
+        let cap = viewportHeight < 720 ? CGFloat(102) : CGFloat(116)
+        return min(max(base, 92), cap)
+    }
 
     static var cardShape: RoundedRectangle {
         RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
@@ -1064,7 +1088,7 @@ private struct LandscapeStatusCardModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
             .padding(.horizontal, HomeLandscapeLayout.statusCardPadding)
-            .padding(.vertical, 12)
+            .padding(.vertical, 10)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(.ultraThinMaterial, in: HomeLandscapeLayout.statusCardShape)
             .overlay(
