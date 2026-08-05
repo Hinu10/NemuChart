@@ -6,6 +6,7 @@ struct HomeView: View {
     var onSettingsChanged: (UserSettings) -> Void = { _ in }
     var onResetAllData: () -> Void = {}
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var now = Date()
     @State private var recordingRoute: HomeRecordingRoute?
     @State private var showingRecordDayChoices = false
@@ -273,7 +274,7 @@ struct HomeView: View {
                     animatedSheep(
                         height: sheepHeight,
                         includesTerrain: true,
-                        canMove: true,
+                        canMove: !reduceMotion,
                         isTight: isTight
                     )
                     Spacer(minLength: 0)
@@ -607,31 +608,37 @@ struct HomeView: View {
     }
 
     private func animatedSheep(height: CGFloat, includesTerrain: Bool, canMove: Bool, isTight: Bool = false) -> some View {
-        ZStack(alignment: .bottom) {
-            if includesTerrain { sheepTerrain }
-            Image(sheepAssetName)
-                .resizable()
-                .scaledToFit()
-                .frame(height: height)
-                .offset(y: (includesTerrain ? -10 : 16) + (canMove && sheepAnimating ? -4 : 0))
-                .animation(
-                    canMove ? .easeInOut(duration: 3.8).repeatForever(autoreverses: true) : nil,
-                    value: sheepAnimating
-                )
+        let animationState = SheepAnimationState(
+            isAnimating: canMove && sheepAnimating,
+            allowsMotion: canMove
+        )
+
+        return ZStack(alignment: .bottom) {
+            if includesTerrain { sheepTerrain(sheepHeight: height) }
+            SheepView(
+                assetName: sheepAssetName,
+                height: height,
+                includesTerrain: includesTerrain,
+                animationState: animationState
+            )
             if vitality == .radiant || vitality == .lively {
-                sleepingMarks
+                FloatingZView(animationState: animationState)
+                    .offset(
+                        x: min(max(height * 0.42, 46), 58),
+                        y: -min(max(height * 0.64, 70), 88)
+                    )
             }
         }
         .frame(maxWidth: .infinity)
-        .frame(height: includesTerrain ? max(height + (isTight ? 32 : 40), isTight ? 148 : 164) : max(height + 28, 164))
+        .frame(height: includesTerrain ? max(height + (isTight ? 38 : 48), isTight ? 156 : 174) : max(height + 32, 172))
         .accessibilityLabel("羊は\(vitality.displayName)状態です")
     }
 
-    private var sheepTerrain: some View {
+    private func sheepTerrain(sheepHeight: CGFloat) -> some View {
         GeometryReader { proxy in
             let width = proxy.size.width
-            let hillWidth = min(width * 1.04, 340)
-            let shadowWidth = min(width * 0.38, 150)
+            let hillWidth = min(width * 0.98, 320)
+            let shadowWidth = min(max(sheepHeight * 1.02, 112), 138)
 
             ZStack(alignment: .bottom) {
                 MountainShape()
@@ -645,31 +652,21 @@ struct HomeView: View {
                 Ellipse()
                     .fill(
                         LinearGradient(
-                            colors: [.green.opacity(0.58), .mint.opacity(0.46), .cyan.opacity(0.24)],
+                            colors: [.green.opacity(0.5), .mint.opacity(0.42), .cyan.opacity(0.22)],
                             startPoint: .bottom,
                             endPoint: .top
                         )
                     )
-                    .frame(width: hillWidth, height: 104)
-                    .offset(y: 34)
+                    .frame(width: hillWidth, height: 98)
+                    .offset(y: 32)
                 Ellipse()
-                    .fill(Color.black.opacity(0.1))
-                    .frame(width: shadowWidth, height: 24)
-                    .blur(radius: 8)
-                    .offset(y: -1)
+                    .fill(Color.black.opacity(SheepGroundingShadow.opacity))
+                    .frame(width: shadowWidth, height: SheepGroundingShadow.height)
+                    .blur(radius: SheepGroundingShadow.blur)
+                    .offset(y: SheepGroundingShadow.yOffset)
             }
         }
         .accessibilityHidden(true)
-    }
-
-    private var sleepingMarks: some View {
-        Text("Zzz")
-            .font(.system(.title3, design: .rounded, weight: .heavy))
-            .foregroundStyle(.white)
-            .shadow(color: .blue.opacity(0.42), radius: 4, y: 2)
-            .offset(x: 58, y: -82)
-            .opacity(0.96)
-            .accessibilityHidden(true)
     }
 
     private var landscapeTint: some View {
@@ -1070,9 +1067,9 @@ private enum HomeLandscapeLayout {
     }
 
     static func sheepHeight(cardHeight: CGFloat, viewportHeight: CGFloat) -> CGFloat {
-        let base = cardHeight * 0.27
-        let cap = viewportHeight < 720 ? CGFloat(102) : CGFloat(116)
-        return min(max(base, 92), cap)
+        let base = cardHeight * 0.315
+        let cap = viewportHeight < 720 ? CGFloat(118) : CGFloat(136)
+        return min(max(base, 106), cap)
     }
 
     static var cardShape: RoundedRectangle {
@@ -1102,6 +1099,93 @@ private extension View {
     func landscapeStatusCard() -> some View {
         modifier(LandscapeStatusCardModifier())
     }
+}
+
+private struct SheepView: View {
+    let assetName: String
+    let height: CGFloat
+    let includesTerrain: Bool
+    let animationState: SheepAnimationState
+
+    var body: some View {
+        Image(assetName)
+            .resizable()
+            .scaledToFit()
+            .frame(height: height)
+            .scaleEffect(animationState.bodyScale)
+            .shadow(color: Color.white.opacity(0.36), radius: 5, y: 1)
+            .shadow(color: Color.black.opacity(0.12), radius: 7, y: 4)
+            .offset(y: baseYOffset + animationState.bodyYOffset)
+            .animation(animationState.bodyAnimation, value: animationState.isAnimating)
+            .accessibilityHidden(true)
+    }
+
+    private var baseYOffset: CGFloat {
+        includesTerrain ? -4 : 16
+    }
+}
+
+private struct FloatingZView: View {
+    let animationState: SheepAnimationState
+
+    var body: some View {
+        Text("Zzz")
+            .font(.system(.title3, design: .rounded, weight: .heavy))
+            .foregroundStyle(.white.opacity(0.88))
+            .shadow(color: .blue.opacity(0.3), radius: 4, y: 2)
+            .offset(y: animationState.zYOffset)
+            .opacity(animationState.zOpacity)
+            .animation(animationState.zAnimation, value: animationState.isAnimating)
+            .accessibilityHidden(true)
+    }
+}
+
+private struct SheepAnimationState {
+    let isAnimating: Bool
+    let allowsMotion: Bool
+
+    private static let bodyTravel = CGFloat(5)
+    private static let breathingScale = CGFloat(0.015)
+    private static let zTravel = CGFloat(6)
+    private static let bodyDuration = 3.4
+    private static let zDuration = 4.2
+
+    var bodyYOffset: CGFloat {
+        guard allowsMotion else { return 0 }
+        return isAnimating ? -Self.bodyTravel * 0.6 : Self.bodyTravel * 0.4
+    }
+
+    var bodyScale: CGFloat {
+        guard allowsMotion else { return 1 }
+        return isAnimating ? 1 + Self.breathingScale : 1 - Self.breathingScale * 0.35
+    }
+
+    var zYOffset: CGFloat {
+        guard allowsMotion else { return 0 }
+        return isAnimating ? -Self.zTravel : 0
+    }
+
+    var zOpacity: Double {
+        guard allowsMotion else { return 0.82 }
+        return isAnimating ? 0.68 : 0.9
+    }
+
+    var bodyAnimation: Animation? {
+        guard allowsMotion else { return nil }
+        return Animation.easeInOut(duration: Self.bodyDuration).repeatForever(autoreverses: true)
+    }
+
+    var zAnimation: Animation? {
+        guard allowsMotion else { return nil }
+        return Animation.easeInOut(duration: Self.zDuration).repeatForever(autoreverses: true)
+    }
+}
+
+private enum SheepGroundingShadow {
+    static let height = CGFloat(18)
+    static let opacity = 0.075
+    static let blur = CGFloat(10)
+    static let yOffset = CGFloat(-2)
 }
 
 private struct MountainShape: Shape {
