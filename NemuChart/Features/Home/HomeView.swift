@@ -265,8 +265,8 @@ struct HomeView: View {
             )
 
             ZStack {
-                landscapeBackdrop
-                landscapeArtwork(height: artworkHeight)
+                cloudSkyBackdrop
+                cloudSkyArtwork(height: artworkHeight)
                     .frame(maxHeight: .infinity, alignment: .top)
 
                 VStack(spacing: isTight ? 7 : 9) {
@@ -294,10 +294,15 @@ struct HomeView: View {
         .onAppear { sheepAnimating = true }
     }
 
-    private func landscapeArtwork(height: CGFloat) -> some View {
-        Image("sheep-landscape")
-            .resizable()
-            .scaledToFill()
+    private func cloudSkyArtwork(height: CGFloat) -> some View {
+        ZStack {
+            SkyCloudCluster(scale: 0.78, opacity: 0.32)
+                .offset(x: -92, y: -height * 0.05)
+            SkyCloudCluster(scale: 0.58, opacity: 0.24)
+                .offset(x: 98, y: height * 0.1)
+            SkyCloudCluster(scale: 0.42, opacity: 0.2)
+                .offset(x: 12, y: height * 0.23)
+        }
             .frame(maxWidth: .infinity)
             .frame(height: height, alignment: .top)
             .clipped()
@@ -306,8 +311,8 @@ struct HomeView: View {
                 LinearGradient(
                     colors: [
                         .clear,
-                        Color(red: 0.67, green: 0.88, blue: 0.82).opacity(0.44),
-                        HomeLandscapeLayout.statusBackground.opacity(0.96)
+                        Color.white.opacity(0.22),
+                        HomeLandscapeLayout.statusBackground.opacity(0.9)
                     ],
                     startPoint: .top,
                     endPoint: .bottom
@@ -317,28 +322,27 @@ struct HomeView: View {
             .accessibilityHidden(true)
     }
 
-    private var landscapeBackdrop: some View {
+    private var cloudSkyBackdrop: some View {
         ZStack {
             LinearGradient(
                 colors: [
-                    Color(red: 0.15, green: 0.44, blue: 0.78),
-                    Color(red: 0.46, green: 0.75, blue: 0.92),
-                    Color(red: 0.99, green: 0.78, blue: 0.58),
-                    Color(red: 0.75, green: 0.91, blue: 0.84),
+                    Color(red: 0.58, green: 0.78, blue: 0.96),
+                    Color(red: 0.77, green: 0.9, blue: 0.98),
+                    Color(red: 0.92, green: 0.88, blue: 0.97),
                     HomeLandscapeLayout.statusBackground
                 ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
+                startPoint: .top,
+                endPoint: .bottom
             )
             LinearGradient(
                 colors: [
                     .clear,
-                    Color.white.opacity(0.18),
-                    Color.mint.opacity(0.22),
-                    Color.white.opacity(0.26)
+                    Color.white.opacity(0.24),
+                    Color.blue.opacity(0.08),
+                    Color.white.opacity(0.18)
                 ],
-                startPoint: .top,
-                endPoint: .bottom
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
             )
         }
         .accessibilityHidden(true)
@@ -614,13 +618,26 @@ struct HomeView: View {
         )
 
         return ZStack(alignment: .bottom) {
-            if includesTerrain { sheepTerrain(sheepHeight: height) }
+            if includesTerrain {
+                SheepCloudBedView(
+                    sheepHeight: height,
+                    layer: .back,
+                    animationState: animationState
+                )
+            }
             SheepView(
                 assetName: sheepAssetName,
                 height: height,
                 includesTerrain: includesTerrain,
                 animationState: animationState
             )
+            if includesTerrain {
+                SheepCloudBedView(
+                    sheepHeight: height,
+                    layer: .front,
+                    animationState: animationState
+                )
+            }
             if vitality == .radiant || vitality == .lively {
                 FloatingZView(animationState: animationState)
                     .offset(
@@ -632,58 +649,6 @@ struct HomeView: View {
         .frame(maxWidth: .infinity)
         .frame(height: includesTerrain ? max(height + (isTight ? 38 : 48), isTight ? 156 : 174) : max(height + 32, 172))
         .accessibilityLabel("羊は\(vitality.displayName)状態です")
-    }
-
-    private func sheepTerrain(sheepHeight: CGFloat) -> some View {
-        GeometryReader { proxy in
-            let width = proxy.size.width
-            let foregroundHillWidth = min(width * 1.12, 360)
-            let restingPatchWidth = min(max(sheepHeight * 1.18, 124), 154)
-            let shadowWidth = min(max(sheepHeight * 0.86, 98), 124)
-
-            ZStack(alignment: .bottom) {
-                MountainShape()
-                    .fill(.teal.opacity(0.22))
-                    .frame(width: min(width * 0.72, 230), height: 86)
-                    .offset(x: -width * 0.18, y: -50)
-                MountainShape()
-                    .fill(.mint.opacity(0.28))
-                    .frame(width: min(width * 0.62, 205), height: 76)
-                    .offset(x: width * 0.2, y: -42)
-                ForegroundHillShape()
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                .mint.opacity(0.5),
-                                .green.opacity(0.38),
-                                HomeLandscapeLayout.statusBackground.opacity(0.18)
-                            ],
-                            startPoint: .bottom,
-                            endPoint: .top
-                        )
-                    )
-                    .frame(width: foregroundHillWidth, height: 86)
-                    .offset(x: width * 0.02, y: 24)
-                Ellipse()
-                    .fill(
-                        LinearGradient(
-                            colors: [.white.opacity(0.18), .mint.opacity(0.18), .clear],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    )
-                    .frame(width: restingPatchWidth, height: 30)
-                    .rotationEffect(.degrees(-3))
-                    .offset(y: 1)
-                Ellipse()
-                    .fill(Color.black.opacity(SheepGroundingShadow.opacity))
-                    .frame(width: shadowWidth, height: SheepGroundingShadow.height)
-                    .blur(radius: SheepGroundingShadow.blur)
-                    .rotationEffect(.degrees(-3))
-                    .offset(y: SheepGroundingShadow.yOffset)
-            }
-        }
-        .accessibilityHidden(true)
     }
 
     private var landscapeTint: some View {
@@ -1060,9 +1025,9 @@ private enum HomeLandscapeLayout {
     static let contentPadding = CGFloat(12)
     static let cardSpacing = CGFloat(8)
     static let statusCardPadding = CGFloat(12)
-    static let statusBackground = Color(red: 0.88, green: 0.96, blue: 0.91)
-    static let headingColor = Color(red: 0.24, green: 0.42, blue: 0.38)
-    static let bodyColor = Color(red: 0.12, green: 0.20, blue: 0.19)
+    static let statusBackground = Color(red: 0.9, green: 0.95, blue: 0.99)
+    static let headingColor = Color(red: 0.28, green: 0.38, blue: 0.54)
+    static let bodyColor = Color(red: 0.12, green: 0.18, blue: 0.27)
 
     static func cardHeight(width: CGFloat, viewportHeight: CGFloat) -> CGFloat {
         let widthBasedHeight = width * 0.98
@@ -1138,7 +1103,89 @@ private struct SheepView: View {
     }
 
     private var baseYOffset: CGFloat {
-        includesTerrain ? 2 : 16
+        includesTerrain ? 8 : 16
+    }
+}
+
+private struct SheepCloudBedView: View {
+    enum Layer {
+        case back
+        case front
+    }
+
+    let sheepHeight: CGFloat
+    let layer: Layer
+    let animationState: SheepAnimationState
+
+    var body: some View {
+        Group {
+            switch layer {
+            case .back:
+                cloudBack
+            case .front:
+                cloudFront
+            }
+        }
+        .offset(y: animationState.cloudYOffset)
+        .animation(animationState.cloudAnimation, value: animationState.isAnimating)
+        .accessibilityHidden(true)
+    }
+
+    private var cloudBack: some View {
+        ZStack(alignment: .bottom) {
+            Ellipse()
+                .fill(Color.indigo.opacity(0.1))
+                .frame(width: sheepHeight * 1.24, height: 18)
+                .blur(radius: 10)
+                .offset(y: 12)
+            CloudClusterShape()
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color(red: 0.98, green: 0.97, blue: 0.93),
+                            Color(red: 0.86, green: 0.93, blue: 0.98),
+                            Color(red: 0.76, green: 0.86, blue: 0.95)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .frame(width: sheepHeight * 1.56, height: sheepHeight * 0.5)
+                .shadow(color: Color.blue.opacity(0.16), radius: 10, y: 5)
+                .shadow(color: Color.white.opacity(0.48), radius: 4, y: -2)
+        }
+        .offset(y: 18)
+    }
+
+    private var cloudFront: some View {
+        CloudClusterShape()
+            .fill(
+                LinearGradient(
+                    colors: [
+                        Color.white.opacity(0.88),
+                        Color(red: 0.9, green: 0.95, blue: 0.99).opacity(0.84),
+                        Color(red: 0.78, green: 0.88, blue: 0.96).opacity(0.74)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            )
+            .frame(width: sheepHeight * 1.34, height: sheepHeight * 0.33)
+            .shadow(color: Color.blue.opacity(0.11), radius: 6, y: 3)
+            .offset(y: 25)
+    }
+}
+
+private struct SkyCloudCluster: View {
+    let scale: CGFloat
+    let opacity: Double
+
+    var body: some View {
+        CloudClusterShape()
+            .fill(Color.white.opacity(opacity))
+            .frame(width: 190 * scale, height: 72 * scale)
+            .blur(radius: 0.6)
+            .accessibilityHidden(true)
     }
 }
 
@@ -1187,6 +1234,11 @@ private struct SheepAnimationState {
         return isAnimating ? 0.68 : 0.9
     }
 
+    var cloudYOffset: CGFloat {
+        guard allowsMotion else { return 0 }
+        return isAnimating ? -1.4 : 1
+    }
+
     var bodyAnimation: Animation? {
         guard allowsMotion else { return nil }
         return Animation.easeInOut(duration: Self.bodyDuration).repeatForever(autoreverses: true)
@@ -1196,37 +1248,24 @@ private struct SheepAnimationState {
         guard allowsMotion else { return nil }
         return Animation.easeInOut(duration: Self.zDuration).repeatForever(autoreverses: true)
     }
-}
 
-private enum SheepGroundingShadow {
-    static let height = CGFloat(14)
-    static let opacity = 0.09
-    static let blur = CGFloat(8)
-    static let yOffset = CGFloat(3)
-}
-
-private struct MountainShape: Shape {
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        path.move(to: CGPoint(x: rect.minX, y: rect.maxY))
-        path.addLine(to: CGPoint(x: rect.midX, y: rect.minY))
-        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
-        path.closeSubpath()
-        return path
+    var cloudAnimation: Animation? {
+        guard allowsMotion else { return nil }
+        return Animation.easeInOut(duration: Self.zDuration + 0.7).repeatForever(autoreverses: true)
     }
 }
 
-private struct ForegroundHillShape: Shape {
+private struct CloudClusterShape: Shape {
     func path(in rect: CGRect) -> Path {
         var path = Path()
-        path.move(to: CGPoint(x: rect.minX, y: rect.maxY))
-        path.addLine(to: CGPoint(x: rect.minX, y: rect.height * 0.58))
-        path.addCurve(
-            to: CGPoint(x: rect.maxX, y: rect.height * 0.5),
-            control1: CGPoint(x: rect.width * 0.26, y: rect.height * 0.2),
-            control2: CGPoint(x: rect.width * 0.68, y: rect.height * 0.76)
+        path.addEllipse(in: CGRect(x: rect.width * 0.02, y: rect.height * 0.43, width: rect.width * 0.36, height: rect.height * 0.36))
+        path.addEllipse(in: CGRect(x: rect.width * 0.18, y: rect.height * 0.18, width: rect.width * 0.34, height: rect.height * 0.48))
+        path.addEllipse(in: CGRect(x: rect.width * 0.42, y: rect.height * 0.06, width: rect.width * 0.34, height: rect.height * 0.58))
+        path.addEllipse(in: CGRect(x: rect.width * 0.66, y: rect.height * 0.3, width: rect.width * 0.32, height: rect.height * 0.42))
+        path.addRoundedRect(
+            in: CGRect(x: rect.width * 0.12, y: rect.height * 0.48, width: rect.width * 0.76, height: rect.height * 0.36),
+            cornerSize: CGSize(width: rect.height * 0.18, height: rect.height * 0.18)
         )
-        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
         path.closeSubpath()
         return path
     }
