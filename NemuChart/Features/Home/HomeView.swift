@@ -637,8 +637,9 @@ struct HomeView: View {
     private func sheepTerrain(sheepHeight: CGFloat) -> some View {
         GeometryReader { proxy in
             let width = proxy.size.width
-            let hillWidth = min(width * 0.98, 320)
-            let shadowWidth = min(max(sheepHeight * 1.02, 112), 138)
+            let foregroundHillWidth = min(width * 1.12, 360)
+            let restingPatchWidth = min(max(sheepHeight * 1.18, 124), 154)
+            let shadowWidth = min(max(sheepHeight * 0.86, 98), 124)
 
             ZStack(alignment: .bottom) {
                 MountainShape()
@@ -649,20 +650,36 @@ struct HomeView: View {
                     .fill(.mint.opacity(0.28))
                     .frame(width: min(width * 0.62, 205), height: 76)
                     .offset(x: width * 0.2, y: -42)
-                Ellipse()
+                ForegroundHillShape()
                     .fill(
                         LinearGradient(
-                            colors: [.green.opacity(0.5), .mint.opacity(0.42), .cyan.opacity(0.22)],
+                            colors: [
+                                .mint.opacity(0.5),
+                                .green.opacity(0.38),
+                                HomeLandscapeLayout.statusBackground.opacity(0.18)
+                            ],
                             startPoint: .bottom,
                             endPoint: .top
                         )
                     )
-                    .frame(width: hillWidth, height: 98)
-                    .offset(y: 32)
+                    .frame(width: foregroundHillWidth, height: 86)
+                    .offset(x: width * 0.02, y: 24)
+                Ellipse()
+                    .fill(
+                        LinearGradient(
+                            colors: [.white.opacity(0.18), .mint.opacity(0.18), .clear],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                    .frame(width: restingPatchWidth, height: 30)
+                    .rotationEffect(.degrees(-3))
+                    .offset(y: 1)
                 Ellipse()
                     .fill(Color.black.opacity(SheepGroundingShadow.opacity))
                     .frame(width: shadowWidth, height: SheepGroundingShadow.height)
                     .blur(radius: SheepGroundingShadow.blur)
+                    .rotationEffect(.degrees(-3))
                     .offset(y: SheepGroundingShadow.yOffset)
             }
         }
@@ -1121,7 +1138,7 @@ private struct SheepView: View {
     }
 
     private var baseYOffset: CGFloat {
-        includesTerrain ? -4 : 16
+        includesTerrain ? 2 : 16
     }
 }
 
@@ -1182,10 +1199,10 @@ private struct SheepAnimationState {
 }
 
 private enum SheepGroundingShadow {
-    static let height = CGFloat(18)
-    static let opacity = 0.075
-    static let blur = CGFloat(10)
-    static let yOffset = CGFloat(-2)
+    static let height = CGFloat(14)
+    static let opacity = 0.09
+    static let blur = CGFloat(8)
+    static let yOffset = CGFloat(3)
 }
 
 private struct MountainShape: Shape {
@@ -1193,6 +1210,22 @@ private struct MountainShape: Shape {
         var path = Path()
         path.move(to: CGPoint(x: rect.minX, y: rect.maxY))
         path.addLine(to: CGPoint(x: rect.midX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+        path.closeSubpath()
+        return path
+    }
+}
+
+private struct ForegroundHillShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: rect.minX, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.height * 0.58))
+        path.addCurve(
+            to: CGPoint(x: rect.maxX, y: rect.height * 0.5),
+            control1: CGPoint(x: rect.width * 0.26, y: rect.height * 0.2),
+            control2: CGPoint(x: rect.width * 0.68, y: rect.height * 0.76)
+        )
         path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
         path.closeSubpath()
         return path
