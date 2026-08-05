@@ -80,6 +80,7 @@ struct HomeView: View {
                 ToolbarItemGroup(placement: .topBarTrailing) {
                     Button("過去の記録", systemImage: "clock.arrow.circlepath") { showingHistory = true }
                     Button("設定", systemImage: "gearshape") { showingSettings = true }
+                        .accessibilityIdentifier("homeSettingsButton")
                 }
             }
         }

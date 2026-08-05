@@ -94,14 +94,13 @@ struct SettingsView: View {
                         .foregroundStyle(.secondary)
                 }
                 Section("追加機能") {
-                    NavigationLink {
-                        FutureFeaturesView(dependencies: dependencies)
-                    } label: {
-                        Label("追加機能", systemImage: "lock.fill")
-                    }
-                    Text("分析・アラーム・書き出しはプレミアムで利用できます。")
+                    Label("MVP後に準備中", systemImage: "sparkles")
+                        .foregroundStyle(.secondary)
+                        .accessibilityIdentifier("mvpFutureFeaturesNotice")
+                    Text("長期分析、生活要因の比較、アラーム体験、データ書き出しは初回リリース後に検証します。")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
+                        .accessibilityIdentifier("mvpFutureFeaturesDescription")
                 }
                 Section("データ管理") {
                     Button("すべてのデータを削除", role: .destructive) { showingDeleteConfirmation = true }
@@ -110,7 +109,9 @@ struct SettingsView: View {
                 }
                 Section("注意事項") {
                     Text("睡眠スコアは、入力内容と個人目標を比べるための参考値です。医療上の評価ではありません。")
+                        .accessibilityIdentifier("medicalDisclaimerPrimary")
                     Text("ねむちゃーとは診断や治療を行いません。強い眠気などが続いて気になる場合は、医療機関などへの相談を検討してください。記録は端末内に保存し、外部へ送信しません。")
+                        .accessibilityIdentifier("medicalDisclaimerSecondary")
                     if !saveStatus.isEmpty {
                         Label(saveStatus, systemImage: saveStatus == "保存済み" ? "checkmark.circle" : "exclamationmark.triangle")
                             .font(.footnote)
@@ -245,11 +246,11 @@ struct SettingsView: View {
 
     private var inferredDurationView: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("推定最適睡眠時間")
+            Text("スッキリしやすい睡眠時間の候補")
             if let inferredEstimate {
                 Text("\(durationText(inferredEstimate.lowerBoundMinutes))〜\(durationText(inferredEstimate.upperBoundMinutes))")
                     .font(.headline)
-                Text("過去の睡眠データとスッキリ度から推定しています。入力は不要です。")
+                Text("過去の記録とスッキリ度から候補を計算しています。入力は不要です。")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                 Text("有効サンプル \(inferredEstimate.sampleCount)件 ・ 信頼度 \(inferredEstimate.confidence.displayName)")
