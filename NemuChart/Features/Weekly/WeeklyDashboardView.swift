@@ -145,15 +145,16 @@ struct WeeklyDashboardView: View {
 
     private func sleepDurationTable(_ metrics: WeeklyMetrics) -> some View {
         let days = chartDays(metrics)
+        let durationColumnWidth: CGFloat = 108
         return GroupBox("日ごとの睡眠時間") {
             VStack(spacing: 0) {
                 HStack {
                     Text("日付")
                     Spacer()
                     Text("睡眠時間")
-                        .frame(width: 92, alignment: .trailing)
+                        .frame(width: durationColumnWidth, alignment: .trailing)
                     Text("昼寝込み")
-                        .frame(width: 92, alignment: .trailing)
+                        .frame(width: durationColumnWidth, alignment: .trailing)
                 }
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
@@ -167,11 +168,17 @@ struct WeeklyDashboardView: View {
                         Text(day.hours.map(hoursText) ?? "未記録")
                             .font(.subheadline)
                             .foregroundStyle(day.hours == nil ? .secondary : .primary)
-                            .frame(width: 92, alignment: .trailing)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.82)
+                            .allowsTightening(true)
+                            .frame(width: durationColumnWidth, alignment: .trailing)
                         Text(day.totalHours.map(hoursText) ?? "未記録")
                             .font(.subheadline.weight(day.totalHours == nil ? .regular : .semibold))
                             .foregroundStyle(day.totalHours == nil ? .secondary : .primary)
-                            .frame(width: 92, alignment: .trailing)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.82)
+                            .allowsTightening(true)
+                            .frame(width: durationColumnWidth, alignment: .trailing)
                     }
                     .padding(.vertical, 9)
                     .accessibilityElement(children: .ignore)
