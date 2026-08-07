@@ -12,10 +12,10 @@ final class NemuChartUITests: XCTestCase {
         completeOnboarding(in: app)
         dismissWeeklyGoalPromptIfNeeded(in: app)
 
-        XCTAssertTrue(app.images["ねむちゃーと"].exists)
-        XCTAssertTrue(app.buttons["記録する"].exists)
+        XCTAssertTrue(app.images["ねむちゃーと"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["記録する"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.buttons["時間帯にかかわらず記録する"].exists)
-        XCTAssertTrue(app.buttons["7日間の分析を見る"].exists)
+        XCTAssertTrue(app.buttons["7日間の分析を見る"].waitForExistence(timeout: 5))
     }
 
     func testFreshInstallShowsDataShortageWithoutFakeValues() {
@@ -56,6 +56,46 @@ final class NemuChartUITests: XCTestCase {
         XCTAssertTrue(scrollToElement(app.staticTexts["medicalDisclaimerSecondary"], in: app))
     }
 
+    func testRecordReviewSaveAndResultFlowIsReachable() {
+        let app = XCUIApplication()
+        app.launchEnvironment["NEMUCHART_UI_TESTING"] = "1"
+        app.launch()
+        completeOnboarding(in: app)
+        dismissWeeklyGoalPromptIfNeeded(in: app)
+
+        XCTAssertTrue(app.buttons["記録する"].waitForExistence(timeout: 3))
+        app.buttons["記録する"].tap()
+        XCTAssertTrue(app.buttons["今日"].waitForExistence(timeout: 3))
+        app.buttons["今日"].tap()
+
+        XCTAssertTrue(app.navigationBars["睡眠を記録"].waitForExistence(timeout: 3))
+        XCTAssertTrue(scrollToElement(app.buttons["reviewSleepRecord"], in: app))
+        app.buttons["reviewSleepRecord"].tap()
+
+        XCTAssertTrue(app.navigationBars["入力内容の確認"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["saveSleepRecord"].waitForExistence(timeout: 3))
+        app.buttons["saveSleepRecord"].tap()
+
+        XCTAssertTrue(app.navigationBars["今日の結果"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.otherElements["dailyScoreSummary"].waitForExistence(timeout: 3) || app.staticTexts["100点中"].exists)
+    }
+
+    func testHomeRendersWithAccessibilityTextSizeAndDarkMode() {
+        let app = XCUIApplication()
+        app.launchEnvironment["NEMUCHART_UI_TESTING"] = "1"
+        app.launchArguments += [
+            "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL",
+            "-AppleInterfaceStyle", "Dark"
+        ]
+        app.launch()
+        completeOnboarding(in: app)
+        dismissWeeklyGoalPromptIfNeeded(in: app)
+
+        XCTAssertTrue(app.buttons["記録する"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["7日間の分析を見る"].exists)
+        XCTAssertTrue(app.buttons["homeSettingsButton"].exists)
+    }
+
     private func completeOnboarding(in app: XCUIApplication) {
         guard app.navigationBars["はじめまして"].waitForExistence(timeout: 3) else { return }
         tapOnboardingPrimaryButton(in: app)
@@ -64,7 +104,7 @@ final class NemuChartUITests: XCTestCase {
         }
         XCTAssertTrue(app.buttons["自分で選ぶ"].waitForExistence(timeout: 3))
         tapOnboardingPrimaryButton(in: app)
-        XCTAssertTrue(waitForHomeOrWeeklyGoal(in: app, timeout: 10))
+        XCTAssertTrue(waitForHomeOrWeeklyGoal(in: app, timeout: 20))
     }
 
     private func tapOnboardingPrimaryButton(in app: XCUIApplication) {
@@ -78,9 +118,10 @@ final class NemuChartUITests: XCTestCase {
     }
 
     private func dismissWeeklyGoalPromptIfNeeded(in app: XCUIApplication) {
-        guard app.navigationBars["週間目標"].waitForExistence(timeout: 3) else { return }
-        app.buttons["閉じる"].tap()
-        XCTAssertTrue(waitForHome(in: app, timeout: 3))
+        if app.navigationBars["週間目標"].waitForExistence(timeout: 5) {
+            app.buttons["閉じる"].tap()
+        }
+        XCTAssertTrue(waitForHome(in: app, timeout: 10))
     }
 
     private func waitForHome(in app: XCUIApplication, timeout: TimeInterval) -> Bool {

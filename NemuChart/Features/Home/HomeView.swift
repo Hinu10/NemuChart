@@ -207,8 +207,12 @@ struct HomeView: View {
         HStack(spacing: 10) {
             ForEach(cards) { card in
                 Button {
-                    withAnimation(.easeInOut(duration: 0.35)) {
+                    if reduceMotion {
                         carouselSelection = card
+                    } else {
+                        withAnimation(.easeInOut(duration: 0.35)) {
+                            carouselSelection = card
+                        }
                     }
                 } label: {
                     Circle()
@@ -230,7 +234,7 @@ struct HomeView: View {
 
     private func advanceCarousel() {
         let cards = availableCarouselCards
-        guard cards.count > 1 else { return }
+        guard cards.count > 1, !reduceMotion else { return }
         let currentIndex = cards.firstIndex(of: carouselSelection) ?? 0
         withAnimation(.easeInOut(duration: 0.45)) {
             carouselSelection = cards[(currentIndex + 1) % cards.count]

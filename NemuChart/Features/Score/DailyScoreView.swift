@@ -30,6 +30,7 @@ struct DailyScoreView: View {
                 .frame(width: 190, height: 190)
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel("日次睡眠スコア \(score.total)点")
+                .accessibilityIdentifier("dailyScoreSummary")
 
                 GroupBox("点数の目安") {
                     VStack(alignment: .leading, spacing: 8) {

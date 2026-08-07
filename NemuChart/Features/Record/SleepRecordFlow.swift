@@ -185,8 +185,11 @@ struct SleepRecordFlow: View {
                         .controlSize(.large)
                         .frame(maxWidth: .infinity)
                         .disabled(isSaving)
+                        .accessibilityIdentifier("saveSleepRecord")
+                        .accessibilityHint("確認した睡眠記録を端末内に保存します")
                     Button("入力に戻る") { phase = .form }
                         .frame(maxWidth: .infinity)
+                        .accessibilityIdentifier("backToSleepRecordForm")
                 }
             }
             .padding()
