@@ -145,15 +145,20 @@ struct WeeklyDashboardView: View {
 
     private func sleepDurationTable(_ metrics: WeeklyMetrics) -> some View {
         let days = chartDays(metrics)
-        let durationColumnWidth: CGFloat = 108
+        let durationColumnWidth: CGFloat = 116
         return GroupBox("日ごとの睡眠時間") {
             VStack(spacing: 0) {
                 HStack {
                     Text("日付")
+                        .lineLimit(1)
                     Spacer()
                     Text("睡眠時間")
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.82)
                         .frame(width: durationColumnWidth, alignment: .trailing)
                     Text("昼寝込み")
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.82)
                         .frame(width: durationColumnWidth, alignment: .trailing)
                 }
                 .font(.caption.weight(.semibold))
@@ -164,21 +169,12 @@ struct WeeklyDashboardView: View {
                     HStack(alignment: .firstTextBaseline) {
                         Text(day.dateLabel)
                             .font(.subheadline)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.85)
                         Spacer()
-                        Text(day.hours.map(hoursText) ?? "未記録")
-                            .font(.subheadline)
-                            .foregroundStyle(day.hours == nil ? .secondary : .primary)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.82)
-                            .allowsTightening(true)
-                            .frame(width: durationColumnWidth, alignment: .trailing)
-                        Text(day.totalHours.map(hoursText) ?? "未記録")
-                            .font(.subheadline.weight(day.totalHours == nil ? .regular : .semibold))
-                            .foregroundStyle(day.totalHours == nil ? .secondary : .primary)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.82)
-                            .allowsTightening(true)
-                            .frame(width: durationColumnWidth, alignment: .trailing)
+                        durationTableValue(day.hours.map(hoursText) ?? "未記録", isMissing: day.hours == nil, width: durationColumnWidth)
+                        durationTableValue(day.totalHours.map(hoursText) ?? "未記録", isMissing: day.totalHours == nil, width: durationColumnWidth)
+                            .fontWeight(day.totalHours == nil ? .regular : .semibold)
                     }
                     .padding(.vertical, 9)
                     .accessibilityElement(children: .ignore)
@@ -186,7 +182,21 @@ struct WeeklyDashboardView: View {
                     if day.id != days.last?.id { Divider() }
                 }
             }
+            .frame(minWidth: 320)
         }
+    }
+
+    private func durationTableValue(_ value: String, isMissing: Bool, width: CGFloat) -> some View {
+        Text(value)
+            .font(.subheadline)
+            .foregroundStyle(isMissing ? .secondary : .primary)
+            .lineLimit(1)
+            .minimumScaleFactor(0.72)
+            .allowsTightening(true)
+            .monospacedDigit()
+            .fixedSize(horizontal: true, vertical: false)
+            .frame(width: width, alignment: .trailing)
+            .layoutPriority(2)
     }
 
     private func metricGrid(_ metrics: WeeklyMetrics) -> some View {
