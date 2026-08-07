@@ -35,7 +35,7 @@ struct DailyScoreView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         Text(scoreQualityText(score.total))
                             .font(.headline)
-                        Text("85点以上: とても良い / 70〜84点: 良い / 50〜69点: 改善の余地あり / 49点以下: 休息を優先")
+                        Text("85点以上: とても良い / 70〜84点: 良い / 50〜69点: 見直しの余地あり / 49点以下: 休息を優先")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .fixedSize(horizontal: false, vertical: true)
@@ -108,7 +108,7 @@ struct DailyScoreView: View {
         switch score {
         case 85...100: "とても良い目安です"
         case 70..<85: "良い目安です"
-        case 50..<70: "改善の余地があります"
+        case 50..<70: "見直しの余地があります"
         default: "休息を優先したい状態です"
         }
     }

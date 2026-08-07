@@ -814,7 +814,7 @@ struct HomeView: View {
         switch score {
         case 85...100: "とても良い目安"
         case 70..<85: "良い目安"
-        case 50..<70: "改善の余地あり"
+        case 50..<70: "見直しの余地あり"
         default: "休息を優先したい状態"
         }
     }

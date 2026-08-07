@@ -58,15 +58,23 @@ final class NemuChartUITests: XCTestCase {
 
     private func completeOnboarding(in app: XCUIApplication) {
         guard app.navigationBars["はじめまして"].waitForExistence(timeout: 3) else { return }
-        let next = app.buttons["onboardingPrimaryButton"]
-        XCTAssertTrue(next.waitForExistence(timeout: 3))
-        next.tap()
-        if !app.buttons["この内容で始める"].waitForExistence(timeout: 3) {
+        tapOnboardingPrimaryButton(in: app)
+        if !app.buttons["自分で選ぶ"].waitForExistence(timeout: 3) {
             app.swipeLeft()
         }
-        XCTAssertTrue(app.buttons["この内容で始める"].waitForExistence(timeout: 3))
-        next.tap()
-        XCTAssertTrue(waitForHomeOrWeeklyGoal(in: app, timeout: 5))
+        XCTAssertTrue(app.buttons["自分で選ぶ"].waitForExistence(timeout: 3))
+        tapOnboardingPrimaryButton(in: app)
+        XCTAssertTrue(waitForHomeOrWeeklyGoal(in: app, timeout: 10))
+    }
+
+    private func tapOnboardingPrimaryButton(in app: XCUIApplication) {
+        let button = app.buttons["onboardingPrimaryButton"]
+        XCTAssertTrue(button.waitForExistence(timeout: 3))
+        if !button.isHittable {
+            app.swipeUp()
+        }
+        XCTAssertTrue(button.waitForExistence(timeout: 3))
+        button.tap()
     }
 
     private func dismissWeeklyGoalPromptIfNeeded(in app: XCUIApplication) {

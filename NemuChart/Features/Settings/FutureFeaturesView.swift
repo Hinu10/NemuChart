@@ -4,7 +4,6 @@ import UniformTypeIdentifiers
 struct FutureFeaturesView: View {
     let dependencies: AppDependencies
     @ObservedObject private var premium: PremiumEntitlementService
-    @State private var errorMessage: String?
 
     init(dependencies: AppDependencies) {
         self.dependencies = dependencies
@@ -39,39 +38,17 @@ struct FutureFeaturesView: View {
             }
         }
         .navigationTitle("追加機能")
-        .task { await premium.refresh() }
-        .alert("購入を完了できませんでした", isPresented: Binding(
-            get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } }
-        )) { Button("OK", role: .cancel) {} } message: { Text(errorMessage ?? "") }
     }
 
     private var premiumLockedContent: some View {
-        Section("プレミアム") {
-            Label("追加機能はロックされています", systemImage: "lock.fill")
+        Section("MVP後の検証予定") {
+            Label("追加機能は初回リリース後に検証します", systemImage: "sparkles")
                 .font(.headline)
-            Text("月ごとの分析、生活要因の傾向、アラーム体験、CSV / JSON書き出しをまとめて利用できます。")
-            if let product = premium.product {
-                Button("\(product.displayPrice)で購入する") { Task { await purchase() } }
-                    .buttonStyle(.borderedProminent)
-            } else if premium.isLoading {
-                ProgressView("購入情報を確認しています")
-            } else {
-                Text("購入情報を取得できませんでした。時間をおいて再度お試しください。")
-                    .foregroundStyle(.secondary)
-            }
-            Button("購入を復元") { Task { await restore() } }
+            Text("月ごとの分析、生活要因の傾向、アラーム体験、CSV / JSON書き出しはMVPには含めず、初回リリース後に検証します。")
+                .foregroundStyle(.secondary)
         }
     }
 
-    private func purchase() async {
-        do { try await premium.purchase() }
-        catch { errorMessage = error.localizedDescription }
-    }
-
-    private func restore() async {
-        do { try await premium.restore() }
-        catch { errorMessage = error.localizedDescription }
-    }
 }
 
 private struct AlarmExperienceView: View {
@@ -208,7 +185,6 @@ private struct LongTermReportsView: View {
     @State private var days = 30
     @State private var report: LongTermReport?
     @State private var recordCount = 0
-    @State private var errorMessage: String?
 
     init(dependencies: AppDependencies) {
         self.dependencies = dependencies
@@ -243,20 +219,11 @@ private struct LongTermReportsView: View {
                     )
                 }
             } else {
-                Section("プレミアム機能") {
-                    Label("1か月分析", systemImage: "lock.fill")
+                Section("MVP後の検証予定") {
+                    Label("1か月分析", systemImage: "calendar.badge.clock")
                         .font(.headline)
-                    Text("7日間分析と日付ごとのスコアは無料です。月間・曜日別・平日休日分析はプレミアムで利用できます。")
-                    if let product = premium.product {
-                        Button("\(product.displayPrice)で利用する") { Task { await purchase() } }
-                            .buttonStyle(.borderedProminent)
-                    } else if premium.isLoading {
-                        ProgressView("購入情報を確認しています")
-                    } else {
-                        Text("購入情報を取得できませんでした。")
-                            .foregroundStyle(.secondary)
-                    }
-                    Button("購入を復元") { Task { await restore() } }
+                    Text("7日間分析と日付ごとのスコアはMVPで利用できます。月間・曜日別・平日休日分析は初回リリース後に検証します。")
+                        .foregroundStyle(.secondary)
                 }
             }
             Section { Text("欠損日は0として扱いません。集計は参考値で、生活要因との因果関係を示しません。")
@@ -264,13 +231,9 @@ private struct LongTermReportsView: View {
         }
         .navigationTitle("長期レポート")
         .task {
-            await premium.refresh()
             if premium.hasPremiumAccess { load() }
         }
         .onChange(of: premium.hasPremiumAccess) { _, enabled in if enabled { load() } }
-        .alert("購入を完了できませんでした", isPresented: Binding(
-            get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } }
-        )) { Button("OK", role: .cancel) {} } message: { Text(errorMessage ?? "") }
     }
 
     @ViewBuilder private func bucketRow(_ bucket: LongTermBucket) -> some View {
@@ -287,14 +250,6 @@ private struct LongTermReportsView: View {
         let records = (try? dependencies.sleepRecordRepository.records()) ?? []
         recordCount = records.count
         report = dependencies.longTermReportService.report(records: records, days: days)
-    }
-    private func purchase() async {
-        do { try await premium.purchase() }
-        catch { errorMessage = error.localizedDescription }
-    }
-    private func restore() async {
-        do { try await premium.restore() }
-        catch { errorMessage = error.localizedDescription }
     }
 }
 
