@@ -1,6 +1,7 @@
 import XCTest
 @testable import NemuChart
 
+@MainActor
 final class MonetizationTests: XCTestCase {
     func testLocalStoreKitConfigurationUsesRuntimePremiumProductID() throws {
         let storeKitURL = URL(fileURLWithPath: #filePath)
@@ -32,7 +33,7 @@ final class MonetizationTests: XCTestCase {
 
         XCTAssertEqual(premium["recurringSubscriptionPeriod"] as? String, "P1M")
         XCTAssertEqual(premium["type"] as? String, "RecurringSubscription")
-        XCTAssertFalse((premium["displayPrice"] as? String ?? "").isEmpty)
+        XCTAssertEqual(premium["displayPrice"] as? String, "250")
 
         let localizations = premium["localizations"] as? [[String: Any]]
         let japanese = localizations?.first { ($0["locale"] as? String) == "ja_JP" }

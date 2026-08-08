@@ -35,15 +35,15 @@
           "billingPlans" : [
             {
               "billingPlanType" : "BILLED_UPFRONT",
-              "commitmentDisplayPrice" : "300",
-              "displayPrice" : "300",
+              "commitmentDisplayPrice" : "250",
+              "displayPrice" : "250",
               "internalID" : "NEMU_PREMIUM_MONTHLY_PLAN",
               "isEnabled" : true
             }
           ],
           "codeOffers" : [
           ],
-          "displayPrice" : "300",
+          "displayPrice" : "250",
           "familyShareable" : false,
           "groupNumber" : 1,
           "internalID" : "NEMU_PREMIUM_MONTHLY",
