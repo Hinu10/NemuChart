@@ -7,6 +7,12 @@ final class MVPFeaturesTests: XCTestCase {
         XCTAssertNotNil(UIImage(named: "NemuChartLogoCropped"))
     }
 
+    func testAppSupportsPortraitOnlyAtRuntime() {
+        let delegate = AppOrientationDelegate()
+
+        XCTAssertEqual(delegate.application(UIApplication.shared, supportedInterfaceOrientationsFor: nil), .portrait)
+    }
+
     func testTimeOfDayBoundaries() {
         let policy = TimeOfDayPolicy()
         XCTAssertEqual(policy.period(at: TestFixtures.date(2026, 7, 14, 3, 59), timeZone: TestFixtures.tokyo), .night)

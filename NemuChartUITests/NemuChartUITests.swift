@@ -96,6 +96,24 @@ final class NemuChartUITests: XCTestCase {
         XCTAssertTrue(app.buttons["homeSettingsButton"].exists)
     }
 
+    func testHomeRemainsUsableWhenLandscapeOrientationIsRequested() {
+        XCUIDevice.shared.orientation = .portrait
+        let app = XCUIApplication()
+        app.launchEnvironment["NEMUCHART_UI_TESTING"] = "1"
+        app.launch()
+        completeOnboarding(in: app)
+        dismissWeeklyGoalPromptIfNeeded(in: app)
+
+        XCUIDevice.shared.orientation = .landscapeLeft
+
+        let appFrame = app.windows.firstMatch.frame
+        XCTAssertGreaterThanOrEqual(appFrame.height, appFrame.width)
+        XCTAssertTrue(app.buttons["記録する"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["7日間の分析を見る"].waitForExistence(timeout: 5))
+
+        XCUIDevice.shared.orientation = .portrait
+    }
+
     private func completeOnboarding(in app: XCUIApplication) {
         guard app.navigationBars["はじめまして"].waitForExistence(timeout: 3) else { return }
         tapOnboardingPrimaryButton(in: app)

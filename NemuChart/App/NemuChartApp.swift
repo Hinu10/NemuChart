@@ -1,8 +1,10 @@
 import SwiftUI
 import SwiftData
+import UIKit
 
 @main
 struct NemuChartApp: App {
+    @UIApplicationDelegateAdaptor(AppOrientationDelegate.self) private var appOrientationDelegate
     private let dependencies: AppDependencies?
     private let startupErrorMessage: String?
 
@@ -28,6 +30,15 @@ struct NemuChartApp: App {
                 StartupFailureView(message: startupErrorMessage ?? "不明なエラー")
             }
         }
+    }
+}
+
+final class AppOrientationDelegate: NSObject, UIApplicationDelegate {
+    func application(
+        _ application: UIApplication,
+        supportedInterfaceOrientationsFor window: UIWindow?
+    ) -> UIInterfaceOrientationMask {
+        .portrait
     }
 }
 
