@@ -4,6 +4,8 @@ import UniformTypeIdentifiers
 struct FutureFeaturesView: View {
     let dependencies: AppDependencies
     @ObservedObject private var premium: PremiumEntitlementService
+    @State private var isPurchasing = false
+    @State private var message: String?
 
     init(dependencies: AppDependencies) {
         self.dependencies = dependencies
@@ -38,14 +40,71 @@ struct FutureFeaturesView: View {
             }
         }
         .navigationTitle("追加機能")
+        .task { await premium.refresh() }
+        .alert("追加機能", isPresented: Binding(
+            get: { message != nil },
+            set: { if !$0 { message = nil } }
+        )) { Button("OK", role: .cancel) {} } message: { Text(message ?? "") }
     }
 
     private var premiumLockedContent: some View {
-        Section("MVP後の検証予定") {
-            Label("追加機能は初回リリース後に検証します", systemImage: "sparkles")
+        Section("プレミアム") {
+            Label("追加機能はプレミアムで利用できます", systemImage: "lock.fill")
                 .font(.headline)
-            Text("月ごとの分析、生活要因の傾向、アラーム体験、CSV / JSON書き出しはMVPには含めず、初回リリース後に検証します。")
+            Text("月ごとの分析、生活要因の傾向、アラーム体験、CSV / JSON書き出しを利用できます。")
                 .foregroundStyle(.secondary)
+            if let product = premium.product {
+                LabeledContent("料金", value: product.displayPrice)
+            } else {
+                Text("購入情報を取得できない場合は、時間をおいて再度お試しください。")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+            Button {
+                purchasePremium()
+            } label: {
+                Label("購入する", systemImage: "cart")
+            }
+            .disabled(isPurchasing || premium.isLoading)
+            .accessibilityIdentifier("premiumPurchaseButton")
+            Button {
+                restorePremium()
+            } label: {
+                Label("購入を復元", systemImage: "arrow.clockwise")
+            }
+            .disabled(isPurchasing || premium.isLoading)
+            .accessibilityIdentifier("premiumRestoreButton")
+            Text("購入処理は App Store を通じて行われます。購入済みの場合は復元できます。")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private func purchasePremium() {
+        guard !isPurchasing else { return }
+        isPurchasing = true
+        Task {
+            defer { isPurchasing = false }
+            do {
+                try await premium.purchase()
+                message = premium.hasPremiumAccess ? "購入が完了しました。" : "購入は完了していません。"
+            } catch {
+                message = error.localizedDescription
+            }
+        }
+    }
+
+    private func restorePremium() {
+        guard !isPurchasing else { return }
+        isPurchasing = true
+        Task {
+            defer { isPurchasing = false }
+            do {
+                try await premium.restore()
+                message = premium.hasPremiumAccess ? "購入を復元しました。" : "復元できる購入が見つかりませんでした。"
+            } catch {
+                message = error.localizedDescription
+            }
         }
     }
 

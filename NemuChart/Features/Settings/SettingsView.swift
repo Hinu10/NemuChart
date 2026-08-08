@@ -5,6 +5,7 @@ struct SettingsView: View {
     let settings: UserSettings
     let onSaved: (UserSettings) -> Void
     let onDeleteAll: () -> Void
+    @ObservedObject private var premium: PremiumEntitlementService
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
     @State private var desiredMinutes: Int
@@ -31,6 +32,7 @@ struct SettingsView: View {
         self.settings = settings
         self.onSaved = onSaved
         self.onDeleteAll = onDeleteAll
+        _premium = ObservedObject(initialValue: dependencies.premiumEntitlementService)
         _desiredMinutes = State(initialValue: Int(settings.desiredSleepDuration / 60))
         _sleepDurationPreference = State(initialValue: settings.sleepDurationPreference)
         _wakeTime = State(initialValue: Calendar.current.date(from: DateComponents(
@@ -94,10 +96,18 @@ struct SettingsView: View {
                         .foregroundStyle(.secondary)
                 }
                 Section("追加機能") {
-                    Label("MVP後に準備中", systemImage: "sparkles")
-                        .foregroundStyle(.secondary)
-                        .accessibilityIdentifier("mvpFutureFeaturesNotice")
-                    Text("長期分析、生活要因の比較、アラーム体験、データ書き出しは初回リリース後に検証します。")
+                    NavigationLink {
+                        FutureFeaturesView(dependencies: dependencies)
+                    } label: {
+                        Label(
+                            "追加機能",
+                            systemImage: premium.hasPremiumAccess ? "sparkles" : "lock.fill"
+                        )
+                    }
+                    .accessibilityIdentifier("premiumFeaturesLink")
+                    Text(premium.hasPremiumAccess
+                         ? "長期分析、生活要因の比較、アラーム体験、データ書き出しを利用できます。"
+                         : "長期分析、生活要因の比較、アラーム体験、データ書き出しはプレミアム機能です。")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                         .accessibilityIdentifier("mvpFutureFeaturesDescription")

@@ -43,14 +43,15 @@ final class NemuChartUITests: XCTestCase {
         completeOnboarding(in: app)
         dismissWeeklyGoalPromptIfNeeded(in: app)
 
-        let settingsButton = app.buttons["homeSettingsButton"]
-        XCTAssertTrue(settingsButton.waitForExistence(timeout: 3))
-        settingsButton.tap()
-        XCTAssertTrue(app.navigationBars["設定"].waitForExistence(timeout: 3))
+        openSettings(in: app)
 
-        XCTAssertTrue(scrollToElement(app.staticTexts["mvpFutureFeaturesNotice"], in: app))
+        XCTAssertTrue(scrollToElement(app.buttons["premiumFeaturesLink"], in: app))
         XCTAssertTrue(app.staticTexts["mvpFutureFeaturesDescription"].exists)
-        XCTAssertFalse(app.buttons["追加機能"].exists)
+        app.buttons["premiumFeaturesLink"].tap()
+        XCTAssertTrue(app.navigationBars["追加機能"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["premiumPurchaseButton"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["premiumRestoreButton"].exists)
+        app.navigationBars["追加機能"].buttons.firstMatch.tap()
 
         XCTAssertTrue(scrollToElement(app.staticTexts["medicalDisclaimerPrimary"], in: app))
         XCTAssertTrue(scrollToElement(app.staticTexts["medicalDisclaimerSecondary"], in: app))
@@ -140,10 +141,10 @@ final class NemuChartUITests: XCTestCase {
     private func completeOnboarding(in app: XCUIApplication) {
         guard app.navigationBars["はじめまして"].waitForExistence(timeout: 3) else { return }
         tapOnboardingPrimaryButton(in: app)
-        if !app.buttons["自分で選ぶ"].waitForExistence(timeout: 6) {
+        if !app.buttons["この内容で始める"].waitForExistence(timeout: 6) {
             app.swipeLeft()
         }
-        XCTAssertTrue(app.buttons["自分で選ぶ"].waitForExistence(timeout: 6))
+        XCTAssertTrue(app.buttons["この内容で始める"].waitForExistence(timeout: 6))
         tapOnboardingPrimaryButton(in: app)
         if !waitForHomeOrWeeklyGoal(in: app, timeout: 5), app.buttons["onboardingPrimaryButton"].exists {
             tapOnboardingPrimaryButton(in: app)
@@ -166,6 +167,21 @@ final class NemuChartUITests: XCTestCase {
             app.buttons["閉じる"].tap()
         }
         XCTAssertTrue(waitForHome(in: app, timeout: 10))
+    }
+
+    private func openSettings(in app: XCUIApplication) {
+        let settingsButton = app.buttons["homeSettingsButton"]
+        XCTAssertTrue(settingsButton.waitForExistence(timeout: 3))
+        for _ in 0..<3 {
+            if settingsButton.isHittable {
+                settingsButton.tap()
+            } else {
+                app.buttons["設定"].firstMatch.tap()
+            }
+            if app.navigationBars["設定"].waitForExistence(timeout: 2) { return }
+        }
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.93, dy: 0.07)).tap()
+        XCTAssertTrue(app.navigationBars["設定"].waitForExistence(timeout: 3))
     }
 
     private func waitForHome(in app: XCUIApplication, timeout: TimeInterval) -> Bool {
