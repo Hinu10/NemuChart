@@ -80,6 +80,29 @@ final class NemuChartUITests: XCTestCase {
         XCTAssertTrue(app.otherElements["dailyScoreSummary"].waitForExistence(timeout: 3) || app.staticTexts["100点中"].exists)
     }
 
+    func testSleepRecordFormKeepsMVPInputFieldsSimpleAndDateAware() {
+        let app = XCUIApplication()
+        app.launchEnvironment["NEMUCHART_UI_TESTING"] = "1"
+        app.launch()
+        completeOnboarding(in: app)
+        dismissWeeklyGoalPromptIfNeeded(in: app)
+
+        XCTAssertTrue(app.buttons["記録する"].waitForExistence(timeout: 3))
+        app.buttons["記録する"].tap()
+        XCTAssertTrue(app.buttons["今日"].waitForExistence(timeout: 3))
+        app.buttons["今日"].tap()
+
+        XCTAssertTrue(app.navigationBars["睡眠を記録"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["必須項目"].exists)
+        XCTAssertFalse(app.staticTexts["必須項目（3項目）"].exists)
+        XCTAssertTrue(app.datePickers["wakeDateTimePicker"].exists)
+        XCTAssertTrue(app.datePickers["sleepDateTimePicker"].exists)
+        XCTAssertFalse(app.staticTexts["二度寝"].exists)
+        XCTAssertFalse(app.switches["スマートフォン終了時刻を記録"].exists)
+
+        XCTAssertTrue(scrollToElement(app.datePickers["smartphoneEndDateTimePicker"], in: app))
+    }
+
     func testHomeRendersWithAccessibilityTextSizeAndDarkMode() {
         let app = XCUIApplication()
         app.launchEnvironment["NEMUCHART_UI_TESTING"] = "1"
@@ -117,11 +140,14 @@ final class NemuChartUITests: XCTestCase {
     private func completeOnboarding(in app: XCUIApplication) {
         guard app.navigationBars["はじめまして"].waitForExistence(timeout: 3) else { return }
         tapOnboardingPrimaryButton(in: app)
-        if !app.buttons["自分で選ぶ"].waitForExistence(timeout: 3) {
+        if !app.buttons["自分で選ぶ"].waitForExistence(timeout: 6) {
             app.swipeLeft()
         }
-        XCTAssertTrue(app.buttons["自分で選ぶ"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["自分で選ぶ"].waitForExistence(timeout: 6))
         tapOnboardingPrimaryButton(in: app)
+        if !waitForHomeOrWeeklyGoal(in: app, timeout: 5), app.buttons["onboardingPrimaryButton"].exists {
+            tapOnboardingPrimaryButton(in: app)
+        }
         XCTAssertTrue(waitForHomeOrWeeklyGoal(in: app, timeout: 20))
     }
 

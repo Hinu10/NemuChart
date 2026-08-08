@@ -123,7 +123,9 @@ struct SleepRecordFlow: View {
             if draft.inputKind == .slept {
                 Section("必須項目") {
                     DatePicker("起床日時", selection: $draft.wakeTime)
+                        .accessibilityIdentifier("wakeDateTimePicker")
                     DatePicker("寝た日時", selection: $draft.sleepClock)
+                        .accessibilityIdentifier("sleepDateTimePicker")
                     Picker("起床時のスッキリ度", selection: $draft.freshness) {
                         ForEach(Freshness.allCases, id: \.self) { value in
                             Text(value.displayName).tag(value)
@@ -141,6 +143,7 @@ struct SleepRecordFlow: View {
                         get: { draft.smartphoneEndTime ?? draft.sleepClock },
                         set: { draft.smartphoneEndTime = $0 }
                     ))
+                    .accessibilityIdentifier("smartphoneEndDateTimePicker")
                     OptionalRatingPicker(title: "ストレス", value: $draft.stress)
                     OptionalRatingPicker(title: "快適さ", value: $draft.comfort)
                     OptionalBoolPicker(title: "いびきの指摘", value: $draft.reportedSnoring, trueLabel: "指摘あり", falseLabel: "なし")
