@@ -1,0 +1,76 @@
+{
+  "identifier" : "NEMU_PREMIUM_LOCAL",
+  "nonRenewingSubscriptions" : [
+  ],
+  "products" : [
+  ],
+  "settings" : {
+    "_askToBuyEnabled" : false,
+    "_billingGracePeriodEnabled" : false,
+    "_billingIssuesEnabled" : false,
+    "_disableDialogs" : false,
+    "_failTransactionsEnabled" : false,
+    "_locale" : "ja_JP",
+    "_renewalBillingIssuesEnabled" : false,
+    "_storefront" : "JPN",
+    "_storeKitErrors" : [
+    ],
+    "_timeRate" : 0
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "NEMU_PREMIUM_GROUP",
+      "localizations" : [
+        {
+          "description" : "ねむちゃーとの追加機能",
+          "displayName" : "ねむちゃーと プレミアム",
+          "locale" : "ja_JP"
+        }
+      ],
+      "name" : "NemuChart Premium",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [
+          ],
+          "billingPlans" : [
+            {
+              "billingPlanType" : "BILLED_UPFRONT",
+              "commitmentDisplayPrice" : "300",
+              "displayPrice" : "300",
+              "internalID" : "NEMU_PREMIUM_MONTHLY_PLAN",
+              "isEnabled" : true
+            }
+          ],
+          "codeOffers" : [
+          ],
+          "displayPrice" : "300",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "NEMU_PREMIUM_MONTHLY",
+          "introductoryOffers" : [
+          ],
+          "localizations" : [
+            {
+              "description" : "月ごとの分析、生活要因の傾向、アラーム体験、CSV / JSON書き出しを利用できます。",
+              "displayName" : "ねむちゃーと プレミアム（月額）",
+              "locale" : "ja_JP"
+            }
+          ],
+          "productID" : "com.hinu10.NemuChart.premium.monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "NemuChart Premium Monthly",
+          "subscriptionGroupID" : "NEMU_PREMIUM_GROUP",
+          "type" : "RecurringSubscription",
+          "winbackOffers" : [
+          ]
+        }
+      ]
+    }
+  ],
+  "subscriptionSuiteGroups" : [
+  ],
+  "version" : {
+    "major" : 6,
+    "minor" : 3
+  }
+}

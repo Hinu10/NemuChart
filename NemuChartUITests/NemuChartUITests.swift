@@ -120,6 +120,40 @@ final class NemuChartUITests: XCTestCase {
         XCTAssertTrue(app.buttons["homeSettingsButton"].exists)
     }
 
+    func testMajorFlowsRemainReachableWithAccessibilityStressSettings() {
+        let app = XCUIApplication()
+        app.launchEnvironment["NEMUCHART_UI_TESTING"] = "1"
+        app.launchArguments += [
+            "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL",
+            "-AppleInterfaceStyle", "Dark",
+            "-UIAccessibilityReduceMotionEnabled", "YES"
+        ]
+        app.launch()
+        completeOnboarding(in: app)
+        dismissWeeklyGoalPromptIfNeeded(in: app)
+
+        XCTAssertTrue(app.buttons["記録する"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["7日間の分析を見る"].exists)
+        XCTAssertTrue(app.buttons["homeSettingsButton"].exists)
+
+        app.buttons["7日間の分析を見る"].tap()
+        XCTAssertTrue(app.navigationBars["7日間の振り返り"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["0 / 7日記録"].exists)
+        app.navigationBars["7日間の振り返り"].buttons.firstMatch.tap()
+
+        openSettings(in: app)
+        XCTAssertTrue(scrollToElement(app.buttons["premiumFeaturesLink"], in: app))
+        XCTAssertTrue(scrollToElement(app.staticTexts["medicalDisclaimerPrimary"], in: app))
+        app.navigationBars["設定"].buttons.firstMatch.tap()
+
+        XCTAssertTrue(app.buttons["記録する"].waitForExistence(timeout: 5))
+        app.buttons["記録する"].tap()
+        XCTAssertTrue(app.buttons["今日"].waitForExistence(timeout: 3))
+        app.buttons["今日"].tap()
+        XCTAssertTrue(app.navigationBars["睡眠を記録"].waitForExistence(timeout: 3))
+        XCTAssertTrue(scrollToElement(app.buttons["reviewSleepRecord"], in: app))
+    }
+
     func testHomeRemainsUsableWhenLandscapeOrientationIsRequested() {
         XCUIDevice.shared.orientation = .portrait
         let app = XCUIApplication()
