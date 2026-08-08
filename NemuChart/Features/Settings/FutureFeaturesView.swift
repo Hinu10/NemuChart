@@ -54,8 +54,12 @@ struct FutureFeaturesView: View {
             Text("月ごとの分析、生活要因の傾向、アラーム体験、CSV / JSON書き出しを利用できます。")
                 .foregroundStyle(.secondary)
             if let product = premium.product {
-                LabeledContent("料金", value: product.displayPrice)
+                LabeledContent("料金", value: "月額200円")
+                Text("App Storeの購入確認画面では、利用中のストアに応じた価格（\(product.displayPrice)）が表示されます。")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
             } else {
+                LabeledContent("料金", value: "月額200円")
                 Text("購入情報を取得できない場合は、時間をおいて再度お試しください。")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
@@ -74,7 +78,7 @@ struct FutureFeaturesView: View {
             }
             .disabled(isPurchasing || premium.isLoading)
             .accessibilityIdentifier("premiumRestoreButton")
-            Text("購入処理は App Store を通じて行われます。購入済みの場合は復元できます。")
+            Text("月額200円の自動更新サブスクリプションです。購入処理は App Store を通じて行われます。購入済みの場合は復元できます。")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }
