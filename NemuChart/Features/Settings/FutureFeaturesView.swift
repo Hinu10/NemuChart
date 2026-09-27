@@ -3,36 +3,24 @@ import UniformTypeIdentifiers
 
 struct FutureFeaturesView: View {
     let dependencies: AppDependencies
-    @ObservedObject private var premium: PremiumEntitlementService
-    @State private var isPurchasing = false
-    @State private var message: String?
-
-    init(dependencies: AppDependencies) {
-        self.dependencies = dependencies
-        premium = dependencies.premiumEntitlementService
-    }
 
     var body: some View {
         List {
-            if premium.hasPremiumAccess {
-                Section("試験提供") {
-                    NavigationLink("アラーム体験の設定") {
-                        AlarmExperienceView(preferences: dependencies.preferences)
-                    }
-                    NavigationLink("生活要因の傾向") {
-                        LifestyleInsightsView(dependencies: dependencies)
-                    }
-                    NavigationLink("1か月分析") {
-                        LongTermReportsView(dependencies: dependencies)
-                    }
+            Section("分析と体験") {
+                NavigationLink("アラーム体験の設定") {
+                    AlarmExperienceView(preferences: dependencies.preferences)
                 }
-                Section("データ") {
-                    NavigationLink("CSV / JSONを書き出す") {
-                        DataExportView(dependencies: dependencies)
-                    }
+                NavigationLink("生活要因の傾向") {
+                    LifestyleInsightsView(dependencies: dependencies)
                 }
-            } else {
-                premiumLockedContent
+                NavigationLink("1か月分析") {
+                    LongTermReportsView(dependencies: dependencies)
+                }
+            }
+            Section("データ") {
+                NavigationLink("CSV / JSONを書き出す") {
+                    DataExportView(dependencies: dependencies)
+                }
             }
             Section {
                 Text("表示する分析は自己入力から計算した参考情報です。測定、診断、因果関係の判定ではありません。")
@@ -40,78 +28,7 @@ struct FutureFeaturesView: View {
             }
         }
         .navigationTitle("追加機能")
-        .task { await premium.refresh() }
-        .alert("追加機能", isPresented: Binding(
-            get: { message != nil },
-            set: { if !$0 { message = nil } }
-        )) { Button("OK", role: .cancel) {} } message: { Text(message ?? "") }
     }
-
-    private var premiumLockedContent: some View {
-        Section("プレミアム") {
-            Label("追加機能はプレミアムで利用できます", systemImage: "lock.fill")
-                .font(.headline)
-            Text("月ごとの分析、生活要因の傾向、アラーム体験、CSV / JSON書き出しを利用できます。")
-                .foregroundStyle(.secondary)
-            if let product = premium.product {
-                LabeledContent("料金", value: "月額200円")
-                Text("App Storeの購入確認画面では、利用中のストアに応じた価格（\(product.displayPrice)）が表示されます。")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            } else {
-                LabeledContent("料金", value: "月額200円")
-                Text("購入情報を取得できない場合は、時間をおいて再度お試しください。")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
-            Button {
-                purchasePremium()
-            } label: {
-                Label("購入する", systemImage: "cart")
-            }
-            .disabled(isPurchasing || premium.isLoading)
-            .accessibilityIdentifier("premiumPurchaseButton")
-            Button {
-                restorePremium()
-            } label: {
-                Label("購入を復元", systemImage: "arrow.clockwise")
-            }
-            .disabled(isPurchasing || premium.isLoading)
-            .accessibilityIdentifier("premiumRestoreButton")
-            Text("月額200円の自動更新サブスクリプションです。購入処理は App Store を通じて行われます。購入済みの場合は復元できます。")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-        }
-    }
-
-    private func purchasePremium() {
-        guard !isPurchasing else { return }
-        isPurchasing = true
-        Task {
-            defer { isPurchasing = false }
-            do {
-                try await premium.purchase()
-                message = premium.hasPremiumAccess ? "購入が完了しました。" : "購入は完了していません。"
-            } catch {
-                message = error.localizedDescription
-            }
-        }
-    }
-
-    private func restorePremium() {
-        guard !isPurchasing else { return }
-        isPurchasing = true
-        Task {
-            defer { isPurchasing = false }
-            do {
-                try await premium.restore()
-                message = premium.hasPremiumAccess ? "購入を復元しました。" : "復元できる購入が見つかりませんでした。"
-            } catch {
-                message = error.localizedDescription
-            }
-        }
-    }
-
 }
 
 private struct AlarmExperienceView: View {
@@ -244,59 +161,41 @@ private struct LifestyleInsightsView: View {
 
 private struct LongTermReportsView: View {
     let dependencies: AppDependencies
-    @ObservedObject private var premium: PremiumEntitlementService
     @State private var days = 30
     @State private var report: LongTermReport?
     @State private var recordCount = 0
 
-    init(dependencies: AppDependencies) {
-        self.dependencies = dependencies
-        premium = dependencies.premiumEntitlementService
-    }
-
     var body: some View {
         List {
-            if premium.hasPremiumAccess {
-                Picker("期間", selection: $days) {
-                    Text("30日").tag(30)
-                    Text("90日").tag(90)
+            Picker("期間", selection: $days) {
+                Text("30日").tag(30)
+                Text("90日").tag(90)
+            }
+            .pickerStyle(.segmented)
+            .onChange(of: days) { _, _ in load() }
+            if let report {
+                Section("月別") { ForEach(report.monthly) { bucketRow($0) } }
+                Section("曜日別") { ForEach(report.weekdays) { bucketRow($0) } }
+                Section("平日と週末") {
+                    LabeledContent("平日のスッキリ度", value: value(report.weekdayFreshness))
+                    LabeledContent("週末のスッキリ度", value: value(report.weekendFreshness))
                 }
-                .pickerStyle(.segmented)
-                .onChange(of: days) { _, _ in load() }
-                if let report {
-                    Section("月別") { ForEach(report.monthly) { bucketRow($0) } }
-                    Section("曜日別") { ForEach(report.weekdays) { bucketRow($0) } }
-                    Section("平日と週末") {
-                        LabeledContent("平日のスッキリ度", value: value(report.weekdayFreshness))
-                        LabeledContent("週末のスッキリ度", value: value(report.weekendFreshness))
-                    }
-                    if report.timeZoneCount > 1 {
-                        Text("複数のタイムゾーンの記録を含みます。各睡眠日の現地時刻で曜日を集計しています。")
-                            .font(.footnote).foregroundStyle(.secondary)
-                    }
-                } else {
-                    ContentUnavailableView(
-                        "長期レポートは準備中",
-                        systemImage: "calendar.badge.clock",
-                        description: Text("選択期間内に\(LongTermReportService.minimumRecords)件以上必要です。全記録は\(recordCount)件です。")
-                    )
+                if report.timeZoneCount > 1 {
+                    Text("複数のタイムゾーンの記録を含みます。各睡眠日の現地時刻で曜日を集計しています。")
+                        .font(.footnote).foregroundStyle(.secondary)
                 }
             } else {
-                Section("MVP後の検証予定") {
-                    Label("1か月分析", systemImage: "calendar.badge.clock")
-                        .font(.headline)
-                    Text("7日間分析と日付ごとのスコアはMVPで利用できます。月間・曜日別・平日休日分析は初回リリース後に検証します。")
-                        .foregroundStyle(.secondary)
-                }
+                ContentUnavailableView(
+                    "長期レポートは準備中",
+                    systemImage: "calendar.badge.clock",
+                    description: Text("選択期間内に\(LongTermReportService.minimumRecords)件以上必要です。全記録は\(recordCount)件です。")
+                )
             }
             Section { Text("欠損日は0として扱いません。集計は参考値で、生活要因との因果関係を示しません。")
                 .font(.footnote).foregroundStyle(.secondary) }
         }
         .navigationTitle("長期レポート")
-        .task {
-            if premium.hasPremiumAccess { load() }
-        }
-        .onChange(of: premium.hasPremiumAccess) { _, enabled in if enabled { load() } }
+        .task { load() }
     }
 
     @ViewBuilder private func bucketRow(_ bucket: LongTermBucket) -> some View {
@@ -309,7 +208,6 @@ private struct LongTermReportsView: View {
     private func value(_ value: Double?) -> String { value.map { String(format: "%.2f", $0) } ?? "データ不足" }
     private func duration(_ value: TimeInterval) -> String { "\(Int(value / 3600))時間\(Int(value / 60) % 60)分" }
     private func load() {
-        guard premium.hasPremiumAccess else { report = nil; return }
         let records = (try? dependencies.sleepRecordRepository.records()) ?? []
         recordCount = records.count
         report = dependencies.longTermReportService.report(records: records, days: days)

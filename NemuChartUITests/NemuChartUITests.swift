@@ -45,12 +45,13 @@ final class NemuChartUITests: XCTestCase {
 
         openSettings(in: app)
 
-        XCTAssertTrue(scrollToElement(app.buttons["premiumFeaturesLink"], in: app))
+        XCTAssertTrue(scrollToElement(app.buttons["additionalFeaturesLink"], in: app))
         XCTAssertTrue(app.staticTexts["mvpFutureFeaturesDescription"].exists)
-        app.buttons["premiumFeaturesLink"].tap()
+        app.buttons["additionalFeaturesLink"].tap()
         XCTAssertTrue(app.navigationBars["追加機能"].waitForExistence(timeout: 3))
-        XCTAssertTrue(app.buttons["premiumPurchaseButton"].waitForExistence(timeout: 3))
-        XCTAssertTrue(app.buttons["premiumRestoreButton"].exists)
+        XCTAssertTrue(app.buttons["1か月分析"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["CSV / JSONを書き出す"].exists)
+        XCTAssertFalse(app.buttons["購入する"].exists)
         app.navigationBars["追加機能"].buttons.firstMatch.tap()
 
         XCTAssertTrue(scrollToElement(app.staticTexts["medicalDisclaimerPrimary"], in: app))
@@ -142,7 +143,7 @@ final class NemuChartUITests: XCTestCase {
         app.navigationBars["7日間の振り返り"].buttons.firstMatch.tap()
 
         openSettings(in: app)
-        XCTAssertTrue(scrollToElement(app.buttons["premiumFeaturesLink"], in: app))
+        XCTAssertTrue(scrollToElement(app.buttons["additionalFeaturesLink"], in: app))
         XCTAssertTrue(scrollToElement(app.staticTexts["medicalDisclaimerPrimary"], in: app))
         app.navigationBars["設定"].buttons.firstMatch.tap()
 
@@ -175,7 +176,7 @@ final class NemuChartUITests: XCTestCase {
     private func completeOnboarding(in app: XCUIApplication) {
         guard app.navigationBars["はじめまして"].waitForExistence(timeout: 3) else { return }
         tapOnboardingPrimaryButton(in: app)
-        if !app.buttons["この内容で始める"].waitForExistence(timeout: 6) {
+        for _ in 0..<3 where !app.buttons["この内容で始める"].waitForExistence(timeout: 2) {
             app.swipeLeft()
         }
         XCTAssertTrue(app.buttons["この内容で始める"].waitForExistence(timeout: 6))

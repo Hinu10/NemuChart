@@ -21,7 +21,6 @@
       <BuildableProductRunnable runnableDebuggingMode="0">
          <BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="100000000000000000000010" BuildableName="NemuChart.app" BlueprintName="NemuChart" ReferencedContainer="container:NemuChart.xcodeproj"/>
       </BuildableProductRunnable>
-      <StoreKitConfigurationFileReference identifier="../NemuChart/StoreKit/NemuChartPremium.storekit"/>
    </LaunchAction>
    <ProfileAction buildConfiguration="Release" shouldUseLaunchSchemeArgsEnv="YES" savedToolIdentifier="" useCustomWorkingDirectory="NO" debugDocumentVersioning="YES">
       <BuildableProductRunnable runnableDebuggingMode="0">
