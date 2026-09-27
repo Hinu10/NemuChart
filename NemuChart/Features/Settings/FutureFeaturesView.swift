@@ -6,10 +6,7 @@ struct FutureFeaturesView: View {
 
     var body: some View {
         List {
-            Section("分析と体験") {
-                NavigationLink("アラーム体験の設定") {
-                    AlarmExperienceView(preferences: dependencies.preferences)
-                }
+            Section("分析") {
                 NavigationLink("生活要因の傾向") {
                     LifestyleInsightsView(dependencies: dependencies)
                 }
@@ -28,81 +25,6 @@ struct FutureFeaturesView: View {
             }
         }
         .navigationTitle("追加機能")
-    }
-}
-
-private struct AlarmExperienceView: View {
-    let preferences: AppPreferencesStore
-    private let soundPreview = AlarmSoundPreviewService()
-    @State private var sound: AlarmSoundChoice = .system
-    @State private var scheduledAt = Date()
-    @State private var result: AlarmResult?
-    @State private var message: String?
-
-    var body: some View {
-        Form {
-            Section("サウンド") {
-                Picker("起床音", selection: $sound) {
-                    ForEach(AlarmSoundChoice.allCases, id: \.self) { Text($0.displayName).tag($0) }
-                }
-                Button("音を試聴") {
-                    do { try soundPreview.play(sound) }
-                    catch { message = "試聴できませんでした：\(error.localizedDescription)" }
-                }
-                Button("選択を保存") { saveSound() }
-            }
-            Section("起床結果の確認") {
-                DatePicker("予定時刻", selection: $scheduledAt)
-                if result == nil {
-                    Button("確認用セッションを開始") { startSession() }
-                } else {
-                    Button("スヌーズ") { snooze() }
-                    Button("停止して結果を保存") { stop() }
-                }
-            }
-            Section("OS上の制約") {
-                Text(capabilityText)
-                Text("この画面は音の選択とスヌーズ・停止結果のデータモデルを検証します。実際の起床通知はOSの許可や状態に左右され、配信を保証しません。")
-                    .font(.footnote).foregroundStyle(.secondary)
-            }
-        }
-        .navigationTitle("アラーム体験")
-        .onAppear { sound = preferences.load().alarmSound }
-        .alert("保存しました", isPresented: Binding(
-            get: { message != nil }, set: { if !$0 { message = nil } }
-        )) { Button("OK", role: .cancel) {} } message: { Text(message ?? "") }
-    }
-
-    private var mode: AlarmDeliveryMode {
-        if #available(iOS 26.0, *) { return .alarmKit }
-        return .notificationFallback
-    }
-    private var capabilityText: String {
-        mode == .alarmKit
-            ? "このOSではAlarmKitを利用できる可能性があります。実機で許可・サウンド・停止動作の確認が必要です。"
-            : "このOSでは通常通知がフォールバック候補です。消音・集中モード等によりアラーム相当の動作は保証できません。"
-    }
-    private func saveSound() {
-        do {
-            var data = preferences.load(); data.alarmSound = sound; try preferences.save(data)
-            message = "起床音の選択を保存しました。"
-        } catch { message = error.localizedDescription }
-    }
-    private func startSession() {
-        result = AlarmResult(scheduledAt: scheduledAt, sound: sound, deliveryMode: mode)
-    }
-    private func snooze() { result?.snoozeCount += 1 }
-    private func stop() {
-        guard var stopped = result else { return }
-        stopped.stoppedAt = Date()
-        do {
-            var data = preferences.load()
-            data.alarmResults.append(stopped)
-            data.alarmResults = Array(data.alarmResults.suffix(30))
-            try preferences.save(data)
-            result = nil
-            message = "停止時刻とスヌーズ\(stopped.snoozeCount)回を保存しました。"
-        } catch { message = error.localizedDescription }
     }
 }
 
@@ -186,7 +108,7 @@ private struct LongTermReportsView: View {
                 }
             } else {
                 ContentUnavailableView(
-                    "長期レポートは準備中",
+                    "記録がまだ足りません",
                     systemImage: "calendar.badge.clock",
                     description: Text("選択期間内に\(LongTermReportService.minimumRecords)件以上必要です。全記録は\(recordCount)件です。")
                 )

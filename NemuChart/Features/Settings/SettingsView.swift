@@ -100,7 +100,7 @@ struct SettingsView: View {
                         Label("追加機能", systemImage: "sparkles")
                     }
                     .accessibilityIdentifier("additionalFeaturesLink")
-                    Text("長期分析、生活要因の比較、アラーム体験、データ書き出しを利用できます。")
+                    Text("長期分析、生活要因の比較、データ書き出しを利用できます。")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                         .accessibilityIdentifier("mvpFutureFeaturesDescription")

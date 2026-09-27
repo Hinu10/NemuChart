@@ -53,7 +53,7 @@ struct WeeklyDashboardView: View {
                     if let difference = metrics.previousWeekScoreDifference {
                         Label(difference > 0 ? "+\(difference)点" : "\(difference)点", systemImage: difference >= 0 ? "arrow.up" : "arrow.down")
                     } else {
-                        Text("前週比較は準備中")
+                        Text("前週の記録なし")
                     }
                 }
                 .font(.subheadline)
@@ -381,7 +381,7 @@ private extension ScoreComponent.Kind {
 extension AnalysisConfidence {
     var displayName: String {
         switch self {
-        case .insufficient: "準備中"
+        case .insufficient: "記録不足"
         case .low: "仮の傾向"
         case .moderate: "見えてきた"
         case .high: "比較的安定"

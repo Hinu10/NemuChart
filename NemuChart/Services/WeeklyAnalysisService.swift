@@ -79,7 +79,7 @@ struct WeeklyAnalysisService: Sendable {
         let reason: String
         if recordCount < Self.minimumTrendRecords {
             level = .insufficient
-            reason = String(localized: "準備中：傾向には3日以上の記録が必要です。")
+            reason = String(localized: "記録不足：傾向には3日以上の記録が必要です。")
         } else if recordCount < Self.moderateConfidenceRecords || completeness < 0.2 {
             level = .low
             reason = String(localized: "仮の傾向：記録数または任意項目がまだ少なめです。")

@@ -33,7 +33,7 @@ final class NemuChartUITests: XCTestCase {
         weeklyAnalysisButton.tap()
         XCTAssertTrue(app.navigationBars["7日間の振り返り"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.staticTexts["0 / 7日記録"].exists)
-        XCTAssertTrue(app.staticTexts["分析信頼度：準備中"].exists)
+        XCTAssertTrue(app.staticTexts["分析信頼度：記録不足"].exists)
     }
 
     func testSettingsShowsMVPReleaseBoundariesAndSafetyCopy() {
