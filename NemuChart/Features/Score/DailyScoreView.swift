@@ -6,6 +6,7 @@ struct ScoreComparison {
 }
 
 struct DailyScoreView: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let score: DailySleepScore
     let record: SleepRecord
     let comparison: ScoreComparison
@@ -16,21 +17,28 @@ struct DailyScoreView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 24) {
-                ZStack {
-                    Circle().stroke(.indigo.opacity(0.15), lineWidth: 18)
-                    Circle()
-                        .trim(from: 0, to: Double(score.total) / 100)
-                        .stroke(.indigo, style: StrokeStyle(lineWidth: 18, lineCap: .round))
-                        .rotationEffect(.degrees(-90))
-                    VStack {
-                        Text("\(score.total)").font(.system(size: 52, weight: .bold, design: .rounded))
-                        Text("100点中").foregroundStyle(.secondary)
+                if dynamicTypeSize.isAccessibilitySize {
+                    Text("日次睡眠スコア \(score.total)点 / 100点")
+                        .font(.largeTitle.bold())
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .accessibilityIdentifier("dailyScoreSummary")
+                } else {
+                    ZStack {
+                        Circle().stroke(.indigo.opacity(0.15), lineWidth: 18)
+                        Circle()
+                            .trim(from: 0, to: Double(score.total) / 100)
+                            .stroke(.indigo, style: StrokeStyle(lineWidth: 18, lineCap: .round))
+                            .rotationEffect(.degrees(-90))
+                        VStack {
+                            Text("\(score.total)").font(.system(size: 52, weight: .bold, design: .rounded))
+                            Text("100点中").foregroundStyle(.secondary)
+                        }
                     }
+                    .frame(width: 190, height: 190)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("日次睡眠スコア \(score.total)点")
+                    .accessibilityIdentifier("dailyScoreSummary")
                 }
-                .frame(width: 190, height: 190)
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel("日次睡眠スコア \(score.total)点")
-                .accessibilityIdentifier("dailyScoreSummary")
 
                 GroupBox("点数の目安") {
                     VStack(alignment: .leading, spacing: 8) {

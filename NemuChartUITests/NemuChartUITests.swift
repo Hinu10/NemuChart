@@ -140,6 +140,7 @@ final class NemuChartUITests: XCTestCase {
         app.buttons["7日間の分析を見る"].tap()
         XCTAssertTrue(app.navigationBars["7日間の振り返り"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.staticTexts["0 / 7日記録"].exists)
+        XCTAssertTrue(scrollToElement(app.staticTexts["日ごとの睡眠時間"], in: app))
         app.navigationBars["7日間の振り返り"].buttons.firstMatch.tap()
 
         openSettings(in: app)
@@ -153,6 +154,10 @@ final class NemuChartUITests: XCTestCase {
         app.buttons["今日"].tap()
         XCTAssertTrue(app.navigationBars["睡眠を記録"].waitForExistence(timeout: 3))
         XCTAssertTrue(scrollToElement(app.buttons["reviewSleepRecord"], in: app))
+        app.buttons["reviewSleepRecord"].tap()
+        XCTAssertTrue(app.buttons["saveSleepRecord"].waitForExistence(timeout: 3))
+        app.buttons["saveSleepRecord"].tap()
+        XCTAssertTrue(app.staticTexts["dailyScoreSummary"].waitForExistence(timeout: 3))
     }
 
     func testHomeRemainsUsableWhenLandscapeOrientationIsRequested() {

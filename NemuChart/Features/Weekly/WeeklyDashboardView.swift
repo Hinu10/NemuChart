@@ -7,6 +7,7 @@ struct WeeklyDashboardView: View {
     let analysisService: WeeklyAnalysisService
     let settings: UserSettings
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var metrics: WeeklyMetrics?
     @State private var estimate: ComfortableDurationEstimate?
     @State private var errorMessage: String?
@@ -147,42 +148,57 @@ struct WeeklyDashboardView: View {
         let days = chartDays(metrics)
         let durationColumnWidth: CGFloat = 116
         return GroupBox("日ごとの睡眠時間") {
-            VStack(spacing: 0) {
-                HStack {
-                    Text("日付")
-                        .lineLimit(1)
-                    Spacer()
-                    Text("睡眠時間")
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.82)
-                        .frame(width: durationColumnWidth, alignment: .trailing)
-                    Text("昼寝込み")
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.82)
-                        .frame(width: durationColumnWidth, alignment: .trailing)
-                }
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .padding(.bottom, 8)
-
-                ForEach(days) { day in
-                    HStack(alignment: .firstTextBaseline) {
-                        Text(day.dateLabel)
-                            .font(.subheadline)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.85)
-                        Spacer()
-                        durationTableValue(day.hours.map(hoursText) ?? "未記録", isMissing: day.hours == nil, width: durationColumnWidth)
-                        durationTableValue(day.totalHours.map(hoursText) ?? "未記録", isMissing: day.totalHours == nil, width: durationColumnWidth)
-                            .fontWeight(day.totalHours == nil ? .regular : .semibold)
+            if dynamicTypeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: 12) {
+                    ForEach(days) { day in
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(day.dateLabel).font(.headline)
+                            LabeledContent("睡眠時間", value: day.hours.map(hoursText) ?? "未記録")
+                            LabeledContent("昼寝込み", value: day.totalHours.map(hoursText) ?? "未記録")
+                        }
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(durationTableAccessibilityText(day))
+                        if day.id != days.last?.id { Divider() }
                     }
-                    .padding(.vertical, 9)
-                    .accessibilityElement(children: .ignore)
-                    .accessibilityLabel(durationTableAccessibilityText(day))
-                    if day.id != days.last?.id { Divider() }
                 }
+            } else {
+                VStack(spacing: 0) {
+                    HStack {
+                        Text("日付")
+                            .lineLimit(1)
+                        Spacer()
+                        Text("睡眠時間")
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.82)
+                            .frame(width: durationColumnWidth, alignment: .trailing)
+                        Text("昼寝込み")
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.82)
+                            .frame(width: durationColumnWidth, alignment: .trailing)
+                    }
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .padding(.bottom, 8)
+
+                    ForEach(days) { day in
+                        HStack(alignment: .firstTextBaseline) {
+                            Text(day.dateLabel)
+                                .font(.subheadline)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.85)
+                            Spacer()
+                            durationTableValue(day.hours.map(hoursText) ?? "未記録", isMissing: day.hours == nil, width: durationColumnWidth)
+                            durationTableValue(day.totalHours.map(hoursText) ?? "未記録", isMissing: day.totalHours == nil, width: durationColumnWidth)
+                                .fontWeight(day.totalHours == nil ? .regular : .semibold)
+                        }
+                        .padding(.vertical, 9)
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(durationTableAccessibilityText(day))
+                        if day.id != days.last?.id { Divider() }
+                    }
+                }
+                .frame(minWidth: 320)
             }
-            .frame(minWidth: 320)
         }
     }
 

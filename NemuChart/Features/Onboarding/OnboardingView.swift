@@ -3,6 +3,7 @@ import SwiftUI
 struct OnboardingView: View {
     let repository: any UserSettingsRepository
     let onComplete: (UserSettings) -> Void
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var page = 0
     @State private var desiredHours = 8
@@ -22,7 +23,12 @@ struct OnboardingView: View {
                 .tabViewStyle(.page(indexDisplayMode: .always))
 
                 Button(page == 0 ? "設定へ進む" : "この内容で始める") {
-                    if page == 0 { withAnimation { page = 1 } } else { save() }
+                    if page == 0 {
+                        if reduceMotion { page = 1 }
+                        else { withAnimation { page = 1 } }
+                    } else {
+                        save()
+                    }
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)

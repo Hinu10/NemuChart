@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct HomeView: View {
     let dependencies: AppDependencies
@@ -7,6 +8,7 @@ struct HomeView: View {
     var onResetAllData: () -> Void = {}
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var now = Date()
     @State private var recordingRoute: HomeRecordingRoute?
     @State private var showingRecordDayChoices = false
@@ -163,16 +165,22 @@ struct HomeView: View {
     private func topSummaryCarousel(height: CGFloat) -> some View {
         let cards = availableCarouselCards
         return VStack(spacing: 8) {
-            TabView(selection: $carouselSelection) {
+            if dynamicTypeSize.isAccessibilitySize {
                 ForEach(cards) { card in
                     carouselCard(card)
-                        .tag(card)
-                        .padding(.horizontal, 1)
                 }
+            } else {
+                TabView(selection: $carouselSelection) {
+                    ForEach(cards) { card in
+                        carouselCard(card)
+                            .tag(card)
+                            .padding(.horizontal, 1)
+                    }
+                }
+                .tabViewStyle(.page(indexDisplayMode: .never))
+                .frame(height: height)
+                carouselPageButtons(cards)
             }
-            .tabViewStyle(.page(indexDisplayMode: .never))
-            .frame(height: height)
-            carouselPageButtons(cards)
         }
         .onAppear { normalizeCarouselSelection(for: cards) }
         .onChange(of: preferenceData.weeklyGoal?.id) { _, _ in
@@ -224,7 +232,7 @@ struct HomeView: View {
                         }
                 }
                 .buttonStyle(.plain)
-                .frame(width: 28, height: 28)
+                .frame(width: 44, height: 44)
                 .accessibilityLabel("\(card.accessibilityTitle)へ移動")
                 .accessibilityAddTraits(card == carouselSelection ? [.isSelected] : [])
             }
@@ -234,7 +242,8 @@ struct HomeView: View {
 
     private func advanceCarousel() {
         let cards = availableCarouselCards
-        guard cards.count > 1, !reduceMotion else { return }
+        guard cards.count > 1, !reduceMotion, !dynamicTypeSize.isAccessibilitySize,
+              !UIAccessibility.isVoiceOverRunning else { return }
         let currentIndex = cards.firstIndex(of: carouselSelection) ?? 0
         withAnimation(.easeInOut(duration: 0.45)) {
             carouselSelection = cards[(currentIndex + 1) % cards.count]
