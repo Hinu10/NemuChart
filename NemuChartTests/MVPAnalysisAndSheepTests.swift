@@ -82,10 +82,10 @@ final class MVPAnalysisAndSheepTests: XCTestCase {
 
     func testVitalityIgnoresSingleLowDayAndRecoversQuickly() throws {
         let service = SheepVitalityService()
-        XCTAssertEqual(service.vitality(scores: [try makeScore(30)]), .calm)
-        XCTAssertEqual(service.vitality(scores: [try makeScore(30), try makeScore(35), try makeScore(40)]), .resting)
+        XCTAssertEqual(service.vitality(scores: [try makeScore(30)]), .drowsy)
+        XCTAssertEqual(service.vitality(scores: [try makeScore(30), try makeScore(35), try makeScore(40)]), .drowsy)
         XCTAssertEqual(service.vitality(scores: [try makeScore(75), try makeScore(35), try makeScore(40)]), .lively)
-        XCTAssertEqual(service.vitality(scores: [try makeScore(85), try makeScore(82)]), .radiant)
+        XCTAssertEqual(service.vitality(scores: [try makeScore(95), try makeScore(82)]), .radiant)
     }
 
     func testGrowthDeduplicatesRecordsAndNeverMovesBackwardForLowScores() {

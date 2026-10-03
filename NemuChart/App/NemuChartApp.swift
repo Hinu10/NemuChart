@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import UIKit
+import UserNotifications
 
 @main
 struct NemuChartApp: App {
@@ -33,13 +34,31 @@ struct NemuChartApp: App {
     }
 }
 
-final class AppOrientationDelegate: NSObject, UIApplicationDelegate {
+final class AppOrientationDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
+    func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
+        UNUserNotificationCenter.current().delegate = self
+        return true
+    }
+
+    func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
+        if response.actionIdentifier == LocalNotificationService.recordActionIdentifier ||
+            response.notification.request.identifier == LocalNotificationService.morningIdentifier {
+            await MainActor.run {
+                UserDefaults.standard.set(true, forKey: "NemuChart.pendingMorningRecord")
+                NotificationCenter.default.post(name: .openMorningRecord, object: nil)
+            }
+        }
+    }
     func application(
         _ application: UIApplication,
         supportedInterfaceOrientationsFor window: UIWindow?
     ) -> UIInterfaceOrientationMask {
         .portrait
     }
+}
+
+extension Notification.Name {
+    static let openMorningRecord = Notification.Name("NemuChart.openMorningRecord")
 }
 
 private struct StartupFailureView: View {

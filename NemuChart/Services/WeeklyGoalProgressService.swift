@@ -47,7 +47,7 @@ struct WeeklyGoalProgressService: Sendable {
             case .recordSleep: return true
             case .meetWakeTime:
                 guard !record.isAllNighter else { return false }
-                return circularDifference(minutes(record.wakeTime, timeZone: weekStart.timeZoneIdentifier), settings.standardWakeTime.minutesSinceMidnight) <= 30
+                return circularDifference(minutes(record.wakeTime, timeZone: weekStart.timeZoneIdentifier), settings.standardWakeTime.minutesSinceMidnight) <= 15
             case .meetSleepDuration:
                 return abs(record.sleepDuration - settings.desiredSleepDuration) <= 30 * 60
             case .endSmartphone:
@@ -57,6 +57,21 @@ struct WeeklyGoalProgressService: Sendable {
                 guard !record.isAllNighter else { return false }
                 guard let latestGoal else { return false }
                 return circularDifference(minutes(record.bedTime, timeZone: weekStart.timeZoneIdentifier), latestGoal.targetBedTime.minutesSinceMidnight) <= 30
+            case .meetTonightGoal:
+                guard let latestGoal, !record.isAllNighter else { return false }
+                let wake = circularDifference(minutes(record.wakeTime, timeZone: weekStart.timeZoneIdentifier), latestGoal.targetWakeTime.minutesSinceMidnight)
+                let bed = circularDifference(minutes(record.bedTime, timeZone: weekStart.timeZoneIdentifier), latestGoal.targetBedTime.minutesSinceMidnight)
+                return wake <= 15 && bed <= 30
+            case .freshness70: return record.freshnessValue >= 70
+            case .freshness60: return record.freshnessValue >= 60
+            case .freshness80: return record.freshnessValue >= 80
+            case .sevenHours: return record.sleepDuration >= 7 * 3600
+            case .avoidShortSleep: return record.sleepDuration >= 6 * 3600
+            case .avoidCaffeine: return record.factors.consumedCaffeine == false
+            case .avoidAlcohol: return record.factors.consumedAlcohol == false
+            case .limitNap: return (record.factors.napMinutes ?? 0) <= 30
+            case .noteStress: return record.factors.stress != nil
+            case .custom: return false
             }
         }.count
         return try WeeklyGoal(kind: kind, weekStart: weekStart, targetCount: targetCount, completedCount: min(completed, targetCount))

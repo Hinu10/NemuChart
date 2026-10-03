@@ -12,6 +12,7 @@ struct SettingsView: View {
     @State private var wakeTime: Date
     @State private var weekStart: WeekStart
     @State private var notificationsEnabled: Bool
+    @AppStorage("NemuChart.morningNotificationEnabled") private var morningEnabled = false
     @State private var authorizationState: NotificationAuthorizationState
     @State private var showingDeleteConfirmation = false
     @State private var errorMessage: String?
@@ -54,7 +55,7 @@ struct SettingsView: View {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("快眠だと思う睡眠時間")
                             Picker("快眠だと思う睡眠時間", selection: $desiredMinutes) {
-                                ForEach(Array(stride(from: 3 * 60, through: 16 * 60, by: 15)), id: \.self) { minutes in
+                                ForEach(Array(stride(from: 30, through: 16 * 60, by: 15)), id: \.self) { minutes in
                                     Text(durationText(minutes)).tag(minutes)
                                 }
                             }
@@ -65,7 +66,7 @@ struct SettingsView: View {
                     } else {
                         inferredDurationView
                     }
-                    DatePicker("通常の起床時刻", selection: $wakeTime, displayedComponents: .hourAndMinute)
+                    DatePicker("理想の起床時間", selection: $wakeTime, displayedComponents: .hourAndMinute)
                     Picker("週の開始曜日", selection: $weekStart) {
                         Text("月曜日").tag(WeekStart.monday)
                         Text("日曜日").tag(WeekStart.sunday)
@@ -73,6 +74,7 @@ struct SettingsView: View {
                 }
                 Section("通知") {
                     Toggle("休む準備の通知", isOn: $notificationsEnabled)
+                    Toggle("朝の記録通知", isOn: $morningEnabled)
                     LabeledContent("OSの許可状態", value: authorizationState.displayName)
                     if authorizationState == .denied {
                         Button("OSの設定を開く") {
@@ -139,6 +141,16 @@ struct SettingsView: View {
                 Task {
                     await updateNotification(enabled)
                     scheduleSave()
+                }
+            }
+            .onChange(of: morningEnabled) { _, enabled in
+                Task {
+                    if enabled {
+                        if authorizationState == .notDetermined {
+                            authorizationState = (try? await dependencies.notificationService.requestAuthorization()) ?? .notDetermined
+                        }
+                        try? await dependencies.notificationService.scheduleMorning(at: localWakeTime)
+                    } else { dependencies.notificationService.cancelMorning() }
                 }
             }
             .onDisappear {
@@ -209,6 +221,9 @@ struct SettingsView: View {
                 dependencies.notificationService.cancelWindDown()
             }
             onSaved(updated)
+            if morningEnabled {
+                Task { try? await dependencies.notificationService.scheduleMorning(at: updated.standardWakeTime) }
+            }
             hasPendingChanges = false
             saveStatus = "保存済み"
         } catch {
@@ -238,6 +253,10 @@ struct SettingsView: View {
                 preferences: dependencies.preferences
             ).deleteAll()
             dependencies.notificationService.cancelWindDown()
+            dependencies.notificationService.cancelMorning()
+            morningEnabled = false
+            NemuAlarmService.cancel()
+            UserDefaults.standard.removeObject(forKey: "NemuChart.alarmEnabled")
             onDeleteAll()
             dismiss()
         } catch { errorMessage = error.localizedDescription }
@@ -245,6 +264,11 @@ struct SettingsView: View {
 
     private func durationText(_ minutes: Int) -> String {
         minutes % 60 == 0 ? "\(minutes / 60)時間" : "\(minutes / 60)時間\(minutes % 60)分"
+    }
+
+    private var localWakeTime: LocalTime {
+        let parts = Calendar.current.dateComponents([.hour, .minute], from: wakeTime)
+        return LocalTime(hour: parts.hour ?? 7, minute: parts.minute ?? 0)!
     }
 
     private var inferredDurationView: some View {

@@ -10,14 +10,16 @@ struct ScoreComponent: Codable, Equatable, Sendable {
 
     let kind: Kind
     let points: Int
+    let exactPoints: Double
     let possiblePoints: Int
 
-    init(kind: Kind, points: Int, possiblePoints: Int) throws {
+    init(kind: Kind, points: Int, possiblePoints: Int, exactPoints: Double? = nil) throws {
         guard possiblePoints > 0, (0...possiblePoints).contains(points) else {
             throw ScoreValidationError.invalidComponent
         }
         self.kind = kind
         self.points = points
+        self.exactPoints = min(Double(possiblePoints), max(0, exactPoints ?? Double(points)))
         self.possiblePoints = possiblePoints
     }
 }

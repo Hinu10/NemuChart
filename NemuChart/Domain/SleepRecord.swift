@@ -11,6 +11,7 @@ struct SleepFactors: Codable, Equatable, Sendable {
     var smartphoneEndTime: Date?
     var stress: Rating?
     var comfort: Rating?
+    var freshnessRate: Int?
     var reportedSnoring: Bool?
     var reportedBreathingPause: Bool?
 
@@ -25,6 +26,7 @@ struct SleepFactors: Codable, Equatable, Sendable {
         smartphoneEndTime: Date? = nil,
         stress: Rating? = nil,
         comfort: Rating? = nil,
+        freshnessRate: Int? = nil,
         reportedSnoring: Bool? = nil,
         reportedBreathingPause: Bool? = nil
     ) throws {
@@ -49,6 +51,7 @@ struct SleepFactors: Codable, Equatable, Sendable {
         self.smartphoneEndTime = smartphoneEndTime
         self.stress = stress
         self.comfort = comfort
+        self.freshnessRate = freshnessRate.map { min(100, max(0, $0)) }
         self.reportedSnoring = reportedSnoring
         self.reportedBreathingPause = reportedBreathingPause
     }
@@ -107,6 +110,7 @@ struct SleepRecord: Identifiable, Codable, Equatable, Sendable {
 
     var isAllNighter: Bool { factors.isAllNighter == true }
     var sleepDuration: TimeInterval { isAllNighter ? 0 : wakeTime.timeIntervalSince(sleepStart) }
+    var freshnessValue: Int { factors.freshnessRate ?? (freshness.rawValue - 1) * 25 }
 }
 
 enum SleepRecordValidationError: Error, Equatable, LocalizedError {

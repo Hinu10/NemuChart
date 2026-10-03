@@ -8,10 +8,15 @@ struct AppPreferenceData: Codable, Equatable {
     var safetyGuidanceDismissedAt: Date?
     var alarmSound: AlarmSoundChoice = .system
     var alarmResults: [AlarmResult] = []
+    var customWeeklyGoalText: String = ""
+    var customWeeklyGoalCompleted: Bool = false
+    var unlockedContentIDs: Set<String> = []
+    var growthEarnings: [UUID: SheepGrowthService.Earning] = [:]
+    var weeklyGoalHistory: [WeeklyGoal] = []
 
     private enum CodingKeys: String, CodingKey {
         case actionGoal, weeklyGoal, weeklyGoalFirstConfiguredAt, rewardedWeeklyGoalIDs, safetyGuidanceDismissedAt
-        case alarmSound, alarmResults
+        case alarmSound, alarmResults, customWeeklyGoalText, customWeeklyGoalCompleted, unlockedContentIDs, growthEarnings, weeklyGoalHistory
     }
 
     init(
@@ -41,6 +46,11 @@ struct AppPreferenceData: Codable, Equatable {
         safetyGuidanceDismissedAt = try values.decodeIfPresent(Date.self, forKey: .safetyGuidanceDismissedAt)
         alarmSound = try values.decodeIfPresent(AlarmSoundChoice.self, forKey: .alarmSound) ?? .system
         alarmResults = try values.decodeIfPresent([AlarmResult].self, forKey: .alarmResults) ?? []
+        customWeeklyGoalText = try values.decodeIfPresent(String.self, forKey: .customWeeklyGoalText) ?? ""
+        customWeeklyGoalCompleted = try values.decodeIfPresent(Bool.self, forKey: .customWeeklyGoalCompleted) ?? false
+        unlockedContentIDs = try values.decodeIfPresent(Set<String>.self, forKey: .unlockedContentIDs) ?? []
+        growthEarnings = try values.decodeIfPresent([UUID: SheepGrowthService.Earning].self, forKey: .growthEarnings) ?? [:]
+        weeklyGoalHistory = try values.decodeIfPresent([WeeklyGoal].self, forKey: .weeklyGoalHistory) ?? []
     }
 }
 

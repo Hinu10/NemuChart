@@ -1,6 +1,7 @@
 import Foundation
 
 enum Vitality: String, Codable, CaseIterable, Sendable {
+    case drowsy
     case resting
     case calm
     case lively
@@ -77,6 +78,17 @@ enum WeeklyGoalKind: String, Codable, CaseIterable, Sendable {
     case meetSleepDuration
     case endSmartphone
     case meetBedtime
+    case meetTonightGoal
+    case freshness70
+    case sevenHours
+    case avoidShortSleep
+    case freshness60
+    case freshness80
+    case avoidCaffeine
+    case avoidAlcohol
+    case limitNap
+    case noteStress
+    case custom
 }
 
 enum DailyActionGoal: String, Codable, CaseIterable, Sendable {

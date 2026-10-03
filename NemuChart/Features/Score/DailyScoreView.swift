@@ -12,7 +12,12 @@ struct DailyScoreView: View {
     let comparison: ScoreComparison
     var feedback: SheepFeedback?
     var growthPointsEarned: Int = 0
+    var growthBefore: Int = 0
+    var growthAfter: Int = 0
+    var earning: SheepGrowthService.Earning?
+    var newlyUnlocked: [SheepCollectible] = []
     var onSetGoal: (() -> Void)?
+    @State private var showingGrowth = false
 
     var body: some View {
         ScrollView {
@@ -55,7 +60,7 @@ struct DailyScoreView: View {
 
                 GroupBox("内訳") {
                     ForEach(score.components, id: \.kind) { component in
-                        LabeledContent(component.kind.displayName, value: "\(component.points) / \(component.possiblePoints)")
+                        LabeledContent(component.kind.displayName, value: String(format: "%.1f / %d", component.exactPoints, component.possiblePoints))
                     }
                 }
                 .frame(maxWidth: .infinity)
@@ -88,14 +93,31 @@ struct DailyScoreView: View {
                     }
                 }
 
-                GroupBox("成長ポイント") {
-                    if growthPointsEarned > 0 {
-                        Label("記録できたので +\(growthPointsEarned)ポイント", systemImage: "sparkles")
-                    } else {
-                        Text("編集内容を保存しました。ポイントは二重に加算されません。")
-                    }
+                GroupBox("羊の成長") {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Label("+\(growthPointsEarned) 成長！", systemImage: "sparkles")
+                            .font(.title2.bold())
+                            .scaleEffect(showingGrowth ? 1 : 0.8)
+                            .opacity(showingGrowth ? 1 : 0)
+                        if let earning {
+                            LabeledContent("記録", value: "+\(earning.recordPoints)")
+                            LabeledContent("睡眠スコア", value: "+\(earning.scorePoints)")
+                            if earning.streakPoints > 0 { LabeledContent("連続記録", value: "+\(earning.streakPoints)") }
+                            if earning.tonightPoints > 0 { LabeledContent("今夜の目標", value: "+\(earning.tonightPoints)") }
+                        }
+                        Text("合計成長値  \(growthBefore) → \(growthAfter)")
+                    }.frame(maxWidth: .infinity, alignment: .leading)
                 }
                 .frame(maxWidth: .infinity)
+
+                ForEach(newlyUnlocked) { item in
+                    GroupBox("新しいものが増えました！") {
+                        Label("『\(item.name)』をアンロックしました", systemImage: item.symbol)
+                            .font(.headline)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .transition(.scale.combined(with: .opacity))
+                }
 
                 if let onSetGoal {
                     Button("今夜の目標を設定する", action: onSetGoal)
@@ -108,6 +130,9 @@ struct DailyScoreView: View {
                     .foregroundStyle(.secondary)
             }
             .padding()
+        }
+        .onAppear {
+            withAnimation(.spring(duration: 1.2)) { showingGrowth = true }
         }
     }
 

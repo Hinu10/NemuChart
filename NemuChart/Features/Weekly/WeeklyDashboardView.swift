@@ -6,6 +6,7 @@ struct WeeklyDashboardView: View {
     let scoringService: any ScoringServiceProtocol
     let analysisService: WeeklyAnalysisService
     let settings: UserSettings
+    var preferences: AppPreferencesStore?
     @Environment(\.dismiss) private var dismiss
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var metrics: WeeklyMetrics?
@@ -19,6 +20,7 @@ struct WeeklyDashboardView: View {
                     ScrollView {
                         VStack(alignment: .leading, spacing: 20) {
                             scoreHeader(metrics)
+                            insightCard(metrics)
                             dailyScores(metrics)
                             scoreBreakdown(metrics)
                             sleepChart(metrics)
@@ -26,6 +28,7 @@ struct WeeklyDashboardView: View {
                             metricGrid(metrics)
                             confidenceCard(metrics.confidence)
                             comfortCard
+                            recommendationCard(metrics)
                         }
                         .padding()
                     }
@@ -40,6 +43,63 @@ struct WeeklyDashboardView: View {
         .alert("集計できませんでした", isPresented: Binding(
             get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } }
         )) { Button("OK", role: .cancel) {} } message: { Text(errorMessage ?? "") }
+    }
+
+    private func insightCard(_ metrics: WeeklyMetrics) -> some View {
+        GroupBox("今週のポイント") {
+            Text(insight(metrics).message)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private func recommendationCard(_ metrics: WeeklyMetrics) -> some View {
+        let recommendation = insight(metrics)
+        return GroupBox("来週のおすすめ目標") {
+            VStack(alignment: .leading, spacing: 12) {
+                Text(recommendation.kind.displayName)
+                if let preferences {
+                    Button("この目標にする") {
+                        do {
+                            var data = preferences.load()
+                            let start = try WeeklyGoalProgressService().mondayStart(containing: Date())
+                            data.weeklyGoal = try WeeklyGoal(kind: recommendation.kind, weekStart: start, targetCount: 3)
+                            data.weeklyGoalFirstConfiguredAt = Date()
+                            try preferences.save(data)
+                        } catch { errorMessage = error.localizedDescription }
+                    }
+                    .buttonStyle(.bordered)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private func insight(_ metrics: WeeklyMetrics) -> (message: String, kind: WeeklyGoalKind) {
+        guard metrics.recordedDayCount >= 3 else {
+            return ("もう少し記録が集まると傾向が見えてきます。", .recordSleep)
+        }
+        let offsets = metrics.recordsByDay.values.filter { !$0.isAllNighter }.map { record -> Int in
+            var calendar = Calendar(identifier: .gregorian)
+            calendar.timeZone = TimeZone(identifier: record.sleepDay.timeZoneIdentifier) ?? .current
+            let actual = calendar.component(.hour, from: record.wakeTime) * 60 + calendar.component(.minute, from: record.wakeTime)
+            return (actual - settings.standardWakeTime.minutesSinceMidnight + 2160) % 1440 - 720
+        }
+        if offsets.count >= 3 {
+            let average = offsets.reduce(0, +) / offsets.count
+            if average >= 20 {
+                return ("今週は起床時刻が理想より平均\(average)分ほど遅めの傾向がありました。", .meetWakeTime)
+            }
+        }
+        if let variation = metrics.wakeTimeVariationMinutes, variation > 40 {
+            return ("今週は起床時刻のばらつきがやや大きめでした。", .meetWakeTime)
+        }
+        if let rate = metrics.sleepDurationGoalRate, rate < 0.5 {
+            return ("理想の睡眠時間から離れた日が目立ちました。", .meetSleepDuration)
+        }
+        if let freshness = metrics.averageFreshness, freshness < 60 {
+            return ("スッキリ度が低めの日がいくつかありました。", .freshness70)
+        }
+        return ("睡眠時間が理想に近い日が多い傾向があります。", .recordSleep)
     }
 
     private func scoreHeader(_ metrics: WeeklyMetrics) -> some View {
@@ -220,7 +280,7 @@ struct WeeklyDashboardView: View {
             metric("平均睡眠時間", metrics.averageSleepDuration.map(durationText) ?? "—")
             metric("就床時刻のばらつき", metrics.bedTimeVariationMinutes.map { "約\(Int($0.rounded()))分" } ?? "—")
             metric("起床時刻のばらつき", metrics.wakeTimeVariationMinutes.map { "約\(Int($0.rounded()))分" } ?? "—")
-            metric("平均スッキリ度", metrics.averageFreshness.map { String(format: "%.1f / 5", $0) } ?? "—")
+            metric("平均スッキリ度", metrics.averageFreshness.map { String(format: "%.0f / 100", $0) } ?? "—")
             metric("スヌーズした割合", metrics.snoozeRate.map(percent) ?? "—")
             metric("睡眠時間目標に近い割合", metrics.sleepDurationGoalRate.map(percent) ?? "—")
         }

@@ -44,7 +44,7 @@ struct UserSettings: Identifiable, Codable, Equatable, Sendable {
         ),
         updatedAt: Date = Date()
     ) throws {
-        guard (3 * 60 * 60...16 * 60 * 60).contains(desiredSleepDuration) else {
+        guard (30 * 60...16 * 60 * 60).contains(desiredSleepDuration) else {
             throw UserSettingsValidationError.invalidDesiredSleepDuration
         }
         guard averageSleepLatencyMinutes.map({ (0...240).contains($0) }) ?? true else {

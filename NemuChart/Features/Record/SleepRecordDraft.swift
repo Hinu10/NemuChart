@@ -17,11 +17,14 @@ enum SleepRecordInputKind: String, CaseIterable, Identifiable {
 struct SleepRecordDraft {
     var inputKind: SleepRecordInputKind = .slept
     var wakeTime: Date
+    var recordDate: Date
+    var manuallyAdjustDates = false
     var bedClock: Date
     var sleepClock: Date
     var sleepStartInputMode: SleepStartInputMode = .clockTime
     var latencyMinutes = 20
     var freshness: Freshness = .neutral
+    var freshnessRate = 50
     var awakeningCount: Int?
     var snoozeCount: Int?
     var secondSleepMinutes: Int?
@@ -40,6 +43,7 @@ struct SleepRecordDraft {
         id = UUID()
         createdAt = now
         wakeTime = now
+        recordDate = now
         bedClock = calendar.date(byAdding: .hour, value: -8, to: now) ?? now
         sleepClock = calendar.date(byAdding: .hour, value: -7, to: now) ?? now
         smartphoneEndTime = sleepClock
@@ -48,9 +52,11 @@ struct SleepRecordDraft {
     init(record: SleepRecord) {
         inputKind = record.isAllNighter ? .allNighter : .slept
         wakeTime = record.wakeTime
+        recordDate = record.wakeTime
         bedClock = record.bedTime
         sleepClock = record.sleepStart
         freshness = record.freshness
+        freshnessRate = record.freshnessValue
         awakeningCount = record.factors.awakeningCount
         snoozeCount = record.factors.snoozeCount
         secondSleepMinutes = record.factors.secondSleepMinutes
@@ -71,16 +77,16 @@ struct SleepRecordDraft {
         timeZone: TimeZone = .current,
         dateTimeService: any DateTimeServiceProtocol = DateTimeService()
     ) throws -> SleepRecord {
-        guard wakeTime <= now.addingTimeInterval(5 * 60) else {
-            throw SleepDraftValidationError.wakeTimeInFuture
-        }
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = timeZone
         let day = try dateTimeService.sleepDay(
-            for: wakeTime,
+            for: recordDate,
             timeZoneIdentifier: timeZone.identifier
         )
         let wake = try Self.date(matchingClock: wakeTime, on: day, calendar: calendar)
+        guard wake <= now.addingTimeInterval(5 * 60) else {
+            throw SleepDraftValidationError.wakeTimeInFuture
+        }
         if inputKind == .allNighter {
             let factors = try SleepFactors(isAllNighter: true)
             return try SleepRecord(
@@ -96,7 +102,13 @@ struct SleepRecordDraft {
                 dateTimeService: dateTimeService
             )
         }
-        let sleepStart = Self.normalizedDate(sleepClock, wake: wake, sleepDay: day, calendar: calendar)
+        let sleepStart: Date
+        if manuallyAdjustDates {
+            sleepStart = sleepClock
+        } else {
+            let sameDay = try Self.date(matchingClock: sleepClock, on: day, calendar: calendar)
+            sleepStart = sameDay >= wake ? calendar.date(byAdding: .day, value: -1, to: sameDay)! : sameDay
+        }
         let bed = sleepStart
 
         var normalizedSmartphoneEndTime: Date?
@@ -119,6 +131,7 @@ struct SleepRecordDraft {
             smartphoneEndTime: normalizedSmartphoneEndTime,
             stress: stress ?? .medium,
             comfort: comfort ?? .medium,
+            freshnessRate: freshnessRate,
             reportedSnoring: reportedSnoring ?? false,
             reportedBreathingPause: reportedBreathingPause ?? false
         )
@@ -128,7 +141,7 @@ struct SleepRecordDraft {
             bedTime: bed,
             sleepStart: sleepStart,
             wakeTime: wake,
-            freshness: freshness,
+            freshness: Freshness(rawValue: min(5, max(1, Int((Double(freshnessRate) / 25).rounded()) + 1))) ?? .neutral,
             factors: factors,
             createdAt: createdAt,
             updatedAt: now,

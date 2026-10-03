@@ -7,11 +7,20 @@ protocol LocalNotificationServiceProtocol: AnyObject {
     func requestAuthorization() async throws -> NotificationAuthorizationState
     func scheduleWindDown(before targetBedTime: LocalTime) async throws
     func cancelWindDown()
+    func scheduleMorning(at wakeTime: LocalTime) async throws
+    func cancelMorning()
+}
+
+extension LocalNotificationServiceProtocol {
+    func scheduleMorning(at wakeTime: LocalTime) async throws {}
+    func cancelMorning() {}
 }
 
 @MainActor
 final class LocalNotificationService: LocalNotificationServiceProtocol {
     static let windDownIdentifier = "NemuChart.windDown"
+    static let morningIdentifier = "NemuChart.morningRecord"
+    static let recordActionIdentifier = "NemuChart.recordNow"
     private let center: UNUserNotificationCenter
 
     init(center: UNUserNotificationCenter = .current()) { self.center = center }
@@ -52,6 +61,26 @@ final class LocalNotificationService: LocalNotificationServiceProtocol {
 
     func cancelWindDown() {
         center.removePendingNotificationRequests(withIdentifiers: [Self.windDownIdentifier])
+    }
+
+    func scheduleMorning(at wakeTime: LocalTime) async throws {
+        cancelMorning()
+        let content = UNMutableNotificationContent()
+        content.title = "今朝の睡眠を記録しませんか"
+        content.body = "覚えている範囲で大丈夫です。"
+        content.sound = .default
+        content.categoryIdentifier = "NemuChart.morningCategory"
+        let action = UNNotificationAction(identifier: Self.recordActionIdentifier, title: "記録する", options: [.foreground])
+        center.setNotificationCategories([UNNotificationCategory(identifier: content.categoryIdentifier, actions: [action], intentIdentifiers: [])])
+        try await center.add(UNNotificationRequest(
+            identifier: Self.morningIdentifier,
+            content: content,
+            trigger: UNCalendarNotificationTrigger(dateMatching: DateComponents(hour: wakeTime.hour, minute: wakeTime.minute), repeats: true)
+        ))
+    }
+
+    func cancelMorning() {
+        center.removePendingNotificationRequests(withIdentifiers: [Self.morningIdentifier])
     }
 }
 

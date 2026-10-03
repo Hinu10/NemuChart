@@ -33,7 +33,7 @@ struct RecordHistoryView: View {
                                 } else {
                                     Text("睡眠 \(timeRangeText(record))")
                                         .font(.subheadline).bold()
-                                    Text("\(durationText(record.sleepDuration)) ・ \(record.freshness.displayName)")
+                                    Text("\(durationText(record.sleepDuration)) ・ スッキリ度 \(record.freshnessValue) / 100")
                                         .font(.subheadline).foregroundStyle(.secondary)
                                 }
                             }

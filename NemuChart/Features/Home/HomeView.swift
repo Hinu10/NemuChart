@@ -18,6 +18,7 @@ struct HomeView: View {
     @State private var proposedWeeklyGoalStart: SleepDay?
     @State private var weeklyGoalPromptDismissedForSession = false
     @State private var showingSettings = false
+    @State private var showingCollection = false
     @State private var records: [SleepRecord] = []
     @State private var scores: [DailySleepScore] = []
     @State private var weeklyMetrics: WeeklyMetrics?
@@ -32,7 +33,7 @@ struct HomeView: View {
     private var vitality: Vitality { dependencies.vitalityService.vitality(scores: scores) }
     private var growth: SheepGrowthSummary {
         dependencies.growthService.summary(
-            recordIDs: records.map(\.id),
+            earnings: dependencies.growthService.earnings(records: records, scores: scores, goals: (try? dependencies.sleepGoalRepository.goals()) ?? []),
             completedWeeklyGoalIDs: Array(preferenceData.rewardedWeeklyGoalIDs)
         )
     }
@@ -81,6 +82,7 @@ struct HomeView: View {
             .toolbar {
                 ToolbarItemGroup(placement: .topBarTrailing) {
                     Button("過去の記録", systemImage: "clock.arrow.circlepath") { showingHistory = true }
+                    Button("コレクション", systemImage: "square.grid.2x2") { showingCollection = true }
                     Button("設定", systemImage: "gearshape") { showingSettings = true }
                         .accessibilityIdentifier("homeSettingsButton")
                 }
@@ -92,6 +94,9 @@ struct HomeView: View {
                 Button(choice.displayName) { openRecording(for: choice) }
             }
             Button("キャンセル", role: .cancel) {}
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .openMorningRecord)) { _ in
+            openRecordingFromMorning()
         }
         .sheet(item: $recordingRoute) { route in
             SleepRecordFlow(
@@ -106,6 +111,30 @@ struct HomeView: View {
                 initialDraft: route.initialDraft,
                 onSaved: loadDashboard
             )
+        }
+        .sheet(isPresented: $showingCollection) {
+            NavigationStack {
+                List {
+                    ForEach(SheepCollectible.Category.allCases, id: \.self) { category in
+                        Section(category.rawValue) {
+                            ForEach(SheepCollectible.all.filter { $0.category == category }) { item in
+                                let unlocked = preferenceData.unlockedContentIDs.contains(item.id)
+                                Label {
+                                    VStack(alignment: .leading) {
+                                        Text(unlocked ? item.name : "？？？")
+                                        if !unlocked { Text("成長値 \(item.requiredGrowth) で解放").font(.caption).foregroundStyle(.secondary) }
+                                    }
+                                } icon: {
+                                    Image(systemName: unlocked ? item.symbol : "questionmark.square.dashed")
+                                        .foregroundStyle(unlocked ? .indigo : .secondary)
+                                }
+                            }
+                        }
+                    }
+                }
+                .navigationTitle("コレクション")
+                .toolbar { Button("閉じる") { showingCollection = false } }
+            }
         }
         .sheet(isPresented: $showingHistory) {
             RecordHistoryView(
@@ -124,7 +153,8 @@ struct HomeView: View {
                 repository: dependencies.sleepRecordRepository,
                 scoringService: dependencies.scoringService,
                 analysisService: dependencies.weeklyAnalysisService,
-                settings: settings
+                settings: settings,
+                preferences: dependencies.preferences
             )
         }
         .sheet(isPresented: $showingWeeklyGoal, onDismiss: {
@@ -148,12 +178,21 @@ struct HomeView: View {
                 onDeleteAll: onResetAllData
             )
         }
-        .task { loadDashboard() }
+        .task {
+            loadDashboard()
+            if UserDefaults.standard.bool(forKey: "NemuChart.pendingMorningRecord") {
+                openRecordingFromMorning()
+            }
+        }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
                 weeklyGoalPromptDismissedForSession = false
                 now = Date()
                 loadDashboard()
+                if UserDefaults.standard.object(forKey: "NemuChart.alarmWakeTime") != nil ||
+                    UserDefaults.standard.bool(forKey: "NemuChart.pendingMorningRecord") {
+                    openRecordingFromMorning()
+                }
             }
         }
         .alert("データを読み込めませんでした", isPresented: Binding(
@@ -282,6 +321,22 @@ struct HomeView: View {
                 cloudSkyBackdrop
                 cloudSkyArtwork(height: artworkHeight)
                     .frame(maxHeight: .infinity, alignment: .top)
+                if let background = automaticBackground {
+                    Image(systemName: background.symbol)
+                        .font(.system(size: 62, weight: .ultraLight))
+                        .foregroundStyle(.white.opacity(0.45))
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                        .padding(30)
+                        .accessibilityLabel(background.name)
+                }
+                if let effect = automaticEffect {
+                    Image(systemName: effect.symbol)
+                        .font(.title)
+                        .foregroundStyle(.yellow.opacity(0.75))
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                        .padding(38)
+                        .accessibilityLabel(effect.name)
+                }
 
                 VStack(spacing: isTight ? 7 : 9) {
                     Spacer(minLength: max(18, artworkHeight * 0.08))
@@ -291,6 +346,14 @@ struct HomeView: View {
                         canMove: !reduceMotion,
                         isTight: isTight
                     )
+                    .overlay(alignment: .topTrailing) {
+                        if let accessory = automaticAccessory {
+                            Image(systemName: accessory.symbol)
+                                .font(.title2).foregroundStyle(.indigo)
+                                .padding(6).background(.thinMaterial, in: Circle())
+                                .accessibilityLabel(accessory.name)
+                        }
+                    }
                     Spacer(minLength: 0)
                     compactLandscapeSummary(isTight: isTight)
                 }
@@ -456,14 +519,16 @@ struct HomeView: View {
     private var todayGuidanceCard: some View {
         GroupBox(todayGuidanceTitle) {
             VStack(alignment: .leading, spacing: 10) {
-                if period == .morning, hasRecordForCurrentSleepDay {
-                    Label("今日の睡眠日は記録済みです", systemImage: "checkmark.circle.fill")
+                if hasRecordForCurrentSleepDay {
+                    Label("今日の記録は完了しました", systemImage: "checkmark.circle.fill")
                         .font(.headline)
                         .foregroundStyle(.green)
                     Text("修正は「記録する」から今日を選んでください。")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 } else {
+                    Text("今日はまだ記録していません")
+                        .font(.headline)
                     Label(todayGuidanceHeadline, systemImage: todayGuidanceSymbol)
                         .font(.headline)
                         .foregroundStyle(period.accentColor)
@@ -509,11 +574,42 @@ struct HomeView: View {
 
     private var sheepAssetName: String {
         switch vitality {
+        case .drowsy: "sheep-resting"
         case .resting: "sheep-resting"
         case .calm: "sheep-calm"
         case .lively: "sheep-lively"
         case .radiant: "sheep-radiant"
         }
+    }
+
+    private var automaticAccessory: SheepCollectible? {
+        let unlocked = SheepCollectible.all.filter {
+            $0.category == .accessory && preferenceData.unlockedContentIDs.contains($0.id)
+        }
+        guard !unlocked.isEmpty else { return nil }
+        let month = Calendar.current.component(.month, from: now)
+        if [12, 1, 2].contains(month), let scarf = unlocked.first(where: { $0.id == "scarf" }) { return scarf }
+        if period == .night, let cap = unlocked.first(where: { $0.id == "nightcap" }) { return cap }
+        return unlocked[Calendar.current.ordinality(of: .day, in: .era, for: now)! % unlocked.count]
+    }
+
+    private var automaticBackground: SheepCollectible? {
+        let unlocked = SheepCollectible.all.filter {
+            $0.category == .background && preferenceData.unlockedContentIDs.contains($0.id)
+        }
+        guard !unlocked.isEmpty else { return nil }
+        let preferred: String = period == .night ? "stars" : period == .morning ? "morning" : "sunset"
+        if let match = unlocked.first(where: { $0.id == preferred }) { return match }
+        return unlocked[(Calendar.current.component(.day, from: now) / 2) % unlocked.count]
+    }
+
+    private var automaticEffect: SheepCollectible? {
+        guard scores.first?.total ?? 0 >= 90 else { return nil }
+        let unlocked = SheepCollectible.all.filter {
+            $0.category == .effect && preferenceData.unlockedContentIDs.contains($0.id)
+        }
+        guard !unlocked.isEmpty else { return nil }
+        return unlocked[Calendar.current.component(.day, from: now) % unlocked.count]
     }
 
     private var recordDayChoices: [HomeRecordDayChoice] { [.today, .yesterday, .twoDaysAgo] }
@@ -743,6 +839,11 @@ struct HomeView: View {
             preferenceData = dependencies.preferences.load()
             try prepareWeeklyGoalIfNeeded()
             try refreshWeeklyGoalIfNeeded()
+            try reconcileWeeklyGoalHistory()
+            let entries = dependencies.growthService.earnings(records: records, scores: scores, goals: try dependencies.sleepGoalRepository.goals())
+            preferenceData.growthEarnings = Dictionary(uniqueKeysWithValues: entries.map { ($0.recordID, $0) })
+            preferenceData.unlockedContentIDs.formUnion(SheepCollectible.all.filter { growth.points.value >= $0.requiredGrowth }.map(\.id))
+            try dependencies.preferences.save(preferenceData)
             safetyGuidance = dependencies.safetyGuidanceService.guidance(
                 records: records, dismissedAt: preferenceData.safetyGuidanceDismissedAt
             )
@@ -765,13 +866,43 @@ struct HomeView: View {
             kind: existing.kind,
             weekStart: existing.weekStart,
             targetCount: existing.targetCount,
-            completedCount: progress.completedCount
+            completedCount: existing.kind == .custom
+                ? (preferenceData.customWeeklyGoalCompleted ? existing.targetCount : 0)
+                : progress.completedCount
         )
         preferenceData.weeklyGoal = updated
+        preferenceData.weeklyGoalHistory.removeAll { $0.id == updated.id }
+        preferenceData.weeklyGoalHistory.append(updated)
         if updated.completedCount >= updated.targetCount {
             preferenceData.rewardedWeeklyGoalIDs.insert(updated.id)
+        } else {
+            preferenceData.rewardedWeeklyGoalIDs.remove(updated.id)
         }
         try dependencies.preferences.save(preferenceData)
+    }
+
+    private func reconcileWeeklyGoalHistory() throws {
+        let latestGoal = try dependencies.sleepGoalRepository.goals().first
+        var updatedHistory: [WeeklyGoal] = []
+        for goal in preferenceData.weeklyGoalHistory {
+            let completed: Int
+            if goal.kind == .custom {
+                completed = goal.completedCount
+            } else {
+                let progress = try dependencies.weeklyGoalProgressService.progress(
+                    kind: goal.kind, targetCount: goal.targetCount, weekStart: goal.weekStart,
+                    records: records, settings: settings, latestGoal: latestGoal
+                )
+                completed = progress.completedCount
+            }
+            let updated = try WeeklyGoal(id: goal.id, kind: goal.kind, weekStart: goal.weekStart,
+                                         targetCount: goal.targetCount, completedCount: completed)
+            updatedHistory.append(updated)
+            if completed >= goal.targetCount { preferenceData.rewardedWeeklyGoalIDs.insert(goal.id) }
+            else { preferenceData.rewardedWeeklyGoalIDs.remove(goal.id) }
+            if preferenceData.weeklyGoal?.id == goal.id { preferenceData.weeklyGoal = updated }
+        }
+        preferenceData.weeklyGoalHistory = updatedHistory
     }
 
     private func prepareWeeklyGoalIfNeeded() throws {
@@ -857,6 +988,24 @@ struct HomeView: View {
         }
     }
 
+    private func openRecordingFromMorning() {
+        guard recordingRoute == nil else { return }
+        UserDefaults.standard.removeObject(forKey: "NemuChart.pendingMorningRecord")
+        let alarmWake = UserDefaults.standard.object(forKey: "NemuChart.alarmWakeTime") as? Date
+        UserDefaults.standard.removeObject(forKey: "NemuChart.alarmWakeTime")
+        guard let alarmWake else { openRecording(for: .today); return }
+        do {
+            let day = try sleepDay(for: .today)
+            if let existing = latestRecord(for: day) {
+                recordingRoute = HomeRecordingRoute(initialRecord: existing)
+            } else {
+                var draft = try draft(for: day)
+                draft.wakeTime = alarmWake
+                recordingRoute = HomeRecordingRoute(initialDraft: draft)
+            }
+        } catch { loadError = error.localizedDescription }
+    }
+
     private func latestRecord(for sleepDay: SleepDay) -> SleepRecord? {
         records
             .filter { $0.sleepDay.key == sleepDay.key }
@@ -884,6 +1033,7 @@ struct HomeView: View {
         let sleepStart = wake.addingTimeInterval(-settings.desiredSleepDuration)
         var draft = SleepRecordDraft(now: wake)
         draft.wakeTime = wake
+        draft.recordDate = wake
         draft.sleepClock = sleepStart
         return draft
     }
@@ -904,6 +1054,7 @@ struct HomeView: View {
 private extension Vitality {
     var displayName: String {
         switch self {
+        case .drowsy: "かなり眠そう"
         case .resting: "眠そう（休息中）"
         case .calm: "穏やか"
         case .lively: "元気"

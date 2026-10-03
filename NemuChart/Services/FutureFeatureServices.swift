@@ -7,7 +7,7 @@ struct LifestyleAssociationService: Sendable {
         LifestyleFactorKind.allCases.compactMap { factor in
             let classified = records.compactMap { record -> (Bool, Double)? in
                 guard let exposed = classification(for: factor, record: record) else { return nil }
-                return (exposed, Double(record.freshness.rawValue))
+                return (exposed, Double(record.freshnessValue))
             }
             let exposed = classified.filter(\.0).map(\.1)
             let comparison = classified.filter { !$0.0 }.map(\.1)
@@ -103,7 +103,7 @@ struct LongTermReportService: Sendable {
 
     private func averageFreshness(_ records: [SleepRecord]) -> Double? {
         guard !records.isEmpty else { return nil }
-        return records.map { Double($0.freshness.rawValue) }.reduce(0, +) / Double(records.count)
+        return records.map { Double($0.freshnessValue) }.reduce(0, +) / Double(records.count)
     }
 }
 
@@ -128,7 +128,7 @@ struct SleepDataExportService: Sendable {
             return [
                 record.id.uuidString, record.sleepDay.key, record.sleepDay.timeZoneIdentifier,
                 formatter.string(from: record.bedTime), formatter.string(from: record.sleepStart),
-                formatter.string(from: record.wakeTime), String(record.freshness.rawValue),
+                formatter.string(from: record.wakeTime), String(record.freshnessValue),
                 String(record.isAllNighter), text(factors.awakeningCount), text(factors.snoozeCount), text(factors.secondSleepMinutes),
                 text(factors.napMinutes), text(factors.consumedAlcohol), text(factors.consumedCaffeine),
                 factors.smartphoneEndTime.map(formatter.string(from:)) ?? "", text(factors.stress?.rawValue),

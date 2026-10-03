@@ -19,6 +19,10 @@ struct SleepRecordFlow: View {
     @State private var comparison: ScoreComparison = .init(previous: nil, recentAverage: nil)
     @State private var isSaving = false
     @State private var growthPointsEarned = 0
+    @State private var growthBefore = 0
+    @State private var growthAfter = 0
+    @State private var earning: SheepGrowthService.Earning?
+    @State private var newlyUnlocked: [SheepCollectible] = []
     @State private var showingGoal = false
     @State private var errorMessage: String?
     @State private var duplicate: SleepRecord?
@@ -60,6 +64,10 @@ struct SleepRecordFlow: View {
                             comparison: comparison,
                             feedback: feedbackService.feedback(for: score),
                             growthPointsEarned: growthPointsEarned,
+                            growthBefore: growthBefore,
+                            growthAfter: growthAfter,
+                            earning: earning,
+                            newlyUnlocked: newlyUnlocked,
                             onSetGoal: goalRepository == nil ? nil : { showingGoal = true }
                         )
                     }
@@ -113,7 +121,7 @@ struct SleepRecordFlow: View {
                 }
                 .pickerStyle(.segmented)
                 if draft.inputKind == .allNighter {
-                    DatePicker("対象日", selection: $draft.wakeTime, displayedComponents: .date)
+                    DatePicker("対象日", selection: $draft.recordDate, displayedComponents: .date)
                     Text("睡眠なしとして0時間で記録します。架空の時刻入力は必要ありません。")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
@@ -122,14 +130,27 @@ struct SleepRecordFlow: View {
 
             if draft.inputKind == .slept {
                 Section("必須項目") {
-                    DatePicker("起床日時", selection: $draft.wakeTime)
+                    DatePicker("記録日（起きた日）", selection: $draft.recordDate, displayedComponents: .date)
+                    DatePicker("起床時刻", selection: $draft.wakeTime, displayedComponents: .hourAndMinute)
                         .accessibilityIdentifier("wakeDateTimePicker")
-                    DatePicker("寝た日時", selection: $draft.sleepClock)
+                    DatePicker("寝た時刻", selection: $draft.sleepClock, displayedComponents: .hourAndMinute)
                         .accessibilityIdentifier("sleepDateTimePicker")
-                    Picker("起床時のスッキリ度", selection: $draft.freshness) {
-                        ForEach(Freshness.allCases, id: \.self) { value in
-                            Text(value.displayName).tag(value)
+                    Text("正確な時刻を覚えていない場合は、記憶している範囲で大丈夫です。")
+                        .font(.footnote).foregroundStyle(.secondary)
+                    DisclosureGroup("日付を手動で調整") {
+                        Toggle("寝た日付を指定", isOn: $draft.manuallyAdjustDates)
+                        if draft.manuallyAdjustDates {
+                            DatePicker("寝た日時", selection: $draft.sleepClock)
                         }
+                    }
+                    VStack(alignment: .leading) {
+                        Text("起床時のスッキリ度：\(draft.freshnessRate) / 100")
+                        Slider(value: Binding(
+                            get: { Double(draft.freshnessRate) },
+                            set: { draft.freshnessRate = Int($0) }
+                        ), in: 0...100, step: 5)
+                        Text("0 まったくスッキリしていない · 50 普通 · 100 とてもスッキリ")
+                            .font(.caption).foregroundStyle(.secondary)
                     }
                 }
 
@@ -176,7 +197,7 @@ struct SleepRecordFlow: View {
                             LabeledContent("入眠", value: record.sleepStart.formatted(date: .omitted, time: .shortened))
                             LabeledContent("起床", value: record.wakeTime.formatted(date: .omitted, time: .shortened))
                             LabeledContent("睡眠時間", value: durationText(record.sleepDuration))
-                            LabeledContent("スッキリ度", value: record.freshness.displayName)
+                            LabeledContent("スッキリ度", value: "\(record.freshnessValue) / 100")
                         }
                     }
                     if !record.isAllNighter {
@@ -213,26 +234,49 @@ struct SleepRecordFlow: View {
         isSaving = true
         defer { isSaving = false }
         do {
+            let oldRecords = try repository.records()
+            let oldScores = try oldRecords.map { try scoringService.score(record: $0, settings: settings) }
+            let goals = try goalRepository?.goals() ?? []
+            let growthService = SheepGrowthService()
+            let weeklyIDs = Array(preferences?.load().rewardedWeeklyGoalIDs ?? [])
+            growthBefore = growthService.summary(earnings: growthService.earnings(records: oldRecords, scores: oldScores, goals: goals), completedWeeklyGoalIDs: weeklyIDs).points.value
             switch try repository.save(record) {
             case .created(let saved):
-                growthPointsEarned = SheepGrowthService.pointsPerRecord
                 savedRecord = saved
                 score = try scoringService.score(record: saved, settings: settings)
                 comparison = try makeComparison(for: saved)
                 phase = .result
+                refreshGrowth(saved: saved, service: growthService, goals: goals, weeklyIDs: weeklyIDs)
                 onSaved()
             case .updated(let saved):
-                growthPointsEarned = 0
                 savedRecord = saved
                 score = try scoringService.score(record: saved, settings: settings)
                 comparison = try makeComparison(for: saved)
                 phase = .result
+                refreshGrowth(saved: saved, service: growthService, goals: goals, weeklyIDs: weeklyIDs)
                 onSaved()
             case .duplicate(let existing):
                 duplicate = existing
             }
         } catch {
             errorMessage = error.localizedDescription
+        }
+    }
+
+    private func refreshGrowth(saved: SleepRecord, service: SheepGrowthService, goals: [SleepGoal], weeklyIDs: [UUID]) {
+        guard let records = try? repository.records(),
+              let scores = try? records.map({ try scoringService.score(record: $0, settings: settings) }) else { return }
+        let earnings = service.earnings(records: records, scores: scores, goals: goals)
+        earning = earnings.first { $0.recordID == saved.id }
+        if var data = preferences?.load() {
+            data.growthEarnings = Dictionary(uniqueKeysWithValues: earnings.map { ($0.recordID, $0) })
+            try? preferences?.save(data)
+        }
+        growthAfter = service.summary(earnings: earnings, completedWeeklyGoalIDs: weeklyIDs).points.value
+        growthPointsEarned = max(0, growthAfter - growthBefore)
+        let alreadyUnlocked = preferences?.load().unlockedContentIDs ?? []
+        newlyUnlocked = SheepCollectible.all.filter {
+            growthAfter >= $0.requiredGrowth && !alreadyUnlocked.contains($0.id)
         }
     }
 

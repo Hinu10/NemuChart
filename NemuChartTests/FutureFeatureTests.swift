@@ -14,7 +14,7 @@ final class FutureFeatureTests: XCTestCase {
         let alcohol = try XCTUnwrap(result.first { $0.factor == .alcohol })
         XCTAssertEqual(alcohol.exposedCount, 5)
         XCTAssertEqual(alcohol.comparisonCount, 5)
-        XCTAssertEqual(alcohol.freshnessDifference, 3, accuracy: 0.001)
+        XCTAssertEqual(alcohol.freshnessDifference, 75, accuracy: 0.001)
         XCTAssertEqual(alcohol.confidence, .low)
     }
 

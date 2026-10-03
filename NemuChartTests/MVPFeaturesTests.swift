@@ -162,7 +162,7 @@ final class MVPFeaturesTests: XCTestCase {
         let score = try DailyScoreCalculator().score(record: record, settings: settings)
 
         XCTAssertEqual(score.total, 100)
-        XCTAssertFalse(score.components.contains { $0.kind == .continuity })
+        XCTAssertTrue(score.components.contains { $0.kind == .continuity })
         XCTAssertEqual(score.components.reduce(0) { $0 + $1.possiblePoints }, 100)
     }
 
@@ -174,6 +174,6 @@ final class MVPFeaturesTests: XCTestCase {
         )
         let score = try DailyScoreCalculator().score(record: record, settings: settings)
         XCTAssertTrue((0...100).contains(score.total))
-        XCTAssertEqual(score.ruleVersion, "1.0.0")
+        XCTAssertEqual(score.ruleVersion, "2.0.0")
     }
 }

@@ -33,7 +33,7 @@ struct WeeklyAnalysisService: Sendable {
             averageSleepDuration: average(current.map(\.sleepDuration)),
             bedTimeVariationMinutes: variation(of: sleptRecords.map(\.bedTime), timeZoneIdentifier: endDay.timeZoneIdentifier, treatsEarlyMorningAsNextDay: true),
             wakeTimeVariationMinutes: variation(of: sleptRecords.map(\.wakeTime), timeZoneIdentifier: endDay.timeZoneIdentifier, treatsEarlyMorningAsNextDay: false),
-            averageFreshness: average(sleptRecords.map { Double($0.freshness.rawValue) }),
+            averageFreshness: average(sleptRecords.map { Double($0.freshnessValue) }),
             snoozeRate: rate(values: current.compactMap(\.factors.snoozeCount)) { $0 > 0 },
             sleepDurationGoalRate: rate(values: current.map(\.sleepDuration)) {
                 abs($0 - settings.desiredSleepDuration) <= 30 * 60
@@ -57,13 +57,13 @@ struct WeeklyAnalysisService: Sendable {
         }
         let groups = Dictionary(grouping: filtered) { Int($0.sleepDuration / 60) / 30 * 30 }
         guard let best = groups.max(by: { lhs, rhs in
-            let left = average(lhs.value.map { Double($0.freshness.rawValue) }) ?? 0
-            let right = average(rhs.value.map { Double($0.freshness.rawValue) }) ?? 0
+            let left = average(lhs.value.map { Double($0.freshnessValue) }) ?? 0
+            let right = average(rhs.value.map { Double($0.freshnessValue) }) ?? 0
             if left == right { return lhs.value.count < rhs.value.count }
             return left < right
         }) else { return nil }
-        let freshness = average(best.value.map { Double($0.freshness.rawValue) }) ?? 0
-        guard freshness >= 3 else { return nil }
+        let freshness = average(best.value.map { Double($0.freshnessValue) }) ?? 0
+        guard freshness >= 50 else { return nil }
         let confidence: AnalysisConfidence = filtered.count >= 20 ? .high : filtered.count >= 14 ? .moderate : .low
         return ComfortableDurationEstimate(
             lowerBoundMinutes: best.key,
