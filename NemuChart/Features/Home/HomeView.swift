@@ -1,3 +1,4 @@
+import Combine
 import SwiftUI
 import UIKit
 
@@ -170,7 +171,7 @@ struct HomeView: View {
                 proposedWeekStart: proposedWeeklyGoalStart
             )
         }
-        .sheet(isPresented: $showingSettings) {
+        .sheet(isPresented: $showingSettings, onDismiss: loadDashboard) {
             SettingsView(
                 dependencies: dependencies,
                 settings: settings,
@@ -775,7 +776,7 @@ struct HomeView: View {
     private func weeklyGoalCard(_ goal: WeeklyGoal) -> some View {
         GroupBox("今週の目標") {
             VStack(alignment: .leading, spacing: 10) {
-                Text(goal.kind.displayName).font(.headline)
+                Text(weeklyGoalTitle(for: goal)).font(.headline)
                 HStack(alignment: .firstTextBaseline) {
                     Text("\(goal.completedCount) / \(goal.targetCount)")
                         .font(.system(size: 32, weight: .bold, design: .rounded))
@@ -789,6 +790,12 @@ struct HomeView: View {
                     .accessibilityValue("\(goal.completedCount)回、目標\(goal.targetCount)回")
             }
         }
+    }
+
+    private func weeklyGoalTitle(for goal: WeeklyGoal) -> String {
+        guard goal.kind == .custom else { return goal.kind.displayName }
+        let customText = preferenceData.customWeeklyGoalText.trimmingCharacters(in: .whitespacesAndNewlines)
+        return customText.isEmpty ? goal.kind.displayName : customText
     }
 
     private var weeklyGoalPlaceholderCard: some View {
