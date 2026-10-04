@@ -137,6 +137,10 @@ final class NemuChartUITests: XCTestCase {
         XCTAssertTrue(app.buttons["7日間の分析を見る"].exists)
         XCTAssertTrue(app.buttons["homeSettingsButton"].exists)
 
+        let landscapeCard = app.otherElements["homeLandscapeCard"]
+        XCTAssertTrue(landscapeCard.exists)
+        XCTAssertLessThanOrEqual(landscapeCard.frame.maxY, app.buttons["記録する"].frame.minY)
+
         app.buttons["7日間の分析を見る"].tap()
         XCTAssertTrue(app.navigationBars["7日間の振り返り"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.staticTexts["0 / 7日記録"].exists)

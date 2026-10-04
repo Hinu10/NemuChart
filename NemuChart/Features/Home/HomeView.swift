@@ -303,72 +303,58 @@ struct HomeView: View {
     }
 
     private func landscapeCardContent(viewportSize: CGSize) -> some View {
-        GeometryReader { proxy in
-            let cardHeight = HomeLandscapeLayout.cardHeight(
-                width: proxy.size.width,
-                viewportHeight: viewportSize.height
-            )
-            let isTight = viewportSize.height < 720
-            let artworkHeight = HomeLandscapeLayout.artworkHeight(
-                cardHeight: cardHeight,
-                width: proxy.size.width
-            )
-            let sheepHeight = HomeLandscapeLayout.sheepHeight(
-                cardHeight: cardHeight,
-                viewportHeight: viewportSize.height
-            )
+        let cardWidth = viewportSize.width - 32
+        let cardHeight = HomeLandscapeLayout.cardHeight(width: cardWidth, viewportHeight: viewportSize.height)
+        let isTight = viewportSize.height < 720
+        let artworkHeight = HomeLandscapeLayout.artworkHeight(cardHeight: cardHeight, width: cardWidth)
+        let sheepHeight = HomeLandscapeLayout.sheepHeight(cardHeight: cardHeight, viewportHeight: viewportSize.height)
 
-            ZStack {
-                cloudSkyBackdrop
-                cloudSkyArtwork(height: artworkHeight)
-                    .frame(maxHeight: .infinity, alignment: .top)
-                if let background = automaticBackground {
-                    Image(systemName: background.symbol)
-                        .font(.system(size: 62, weight: .ultraLight))
-                        .foregroundStyle(.white.opacity(0.45))
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
-                        .padding(30)
-                        .accessibilityLabel(background.name)
-                }
-                if let effect = automaticEffect {
-                    Image(systemName: effect.symbol)
-                        .font(.title)
-                        .foregroundStyle(.yellow.opacity(0.75))
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                        .padding(38)
-                        .accessibilityLabel(effect.name)
-                }
-
-                VStack(spacing: isTight ? 7 : 9) {
-                    Spacer(minLength: max(18, artworkHeight * 0.08))
-                    animatedSheep(
-                        height: sheepHeight,
-                        includesTerrain: true,
-                        canMove: !reduceMotion,
-                        isTight: isTight
-                    )
-                    .overlay(alignment: .topTrailing) {
-                        if let accessory = automaticAccessory {
-                            Image(systemName: accessory.symbol)
-                                .font(.title2).foregroundStyle(.indigo)
-                                .padding(6).background(.thinMaterial, in: Circle())
-                                .accessibilityLabel(accessory.name)
-                        }
-                    }
-                    Spacer(minLength: 0)
-                    compactLandscapeSummary(isTight: isTight)
-                }
-                .padding(.horizontal, HomeLandscapeLayout.contentPadding)
-                .padding(.top, isTight ? 8 : 10)
-                .padding(.bottom, HomeLandscapeLayout.contentPadding)
+        return ZStack(alignment: .top) {
+            cloudSkyBackdrop
+            cloudSkyArtwork(height: artworkHeight)
+            if let background = automaticBackground {
+                Image(systemName: background.symbol)
+                    .font(.system(size: 62, weight: .ultraLight))
+                    .foregroundStyle(.white.opacity(0.45))
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                    .padding(30)
+                    .accessibilityLabel(background.name)
             }
-            .clipShape(HomeLandscapeLayout.cardShape)
-            .overlay(
-                HomeLandscapeLayout.cardShape
-                    .stroke(.white.opacity(0.42), lineWidth: 1)
-            )
+            if let effect = automaticEffect {
+                Image(systemName: effect.symbol)
+                    .font(.title)
+                    .foregroundStyle(.yellow.opacity(0.75))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(38)
+                    .accessibilityLabel(effect.name)
+            }
+
+            VStack(spacing: isTight ? 7 : 9) {
+                animatedSheep(
+                    height: sheepHeight,
+                    includesTerrain: true,
+                    canMove: !reduceMotion,
+                    isTight: isTight
+                )
+                .overlay(alignment: .topTrailing) {
+                    if let accessory = automaticAccessory {
+                        Image(systemName: accessory.symbol)
+                            .font(.title2).foregroundStyle(.indigo)
+                            .padding(6).background(.thinMaterial, in: Circle())
+                            .accessibilityLabel(accessory.name)
+                    }
+                }
+                compactLandscapeSummary(isTight: isTight)
+            }
+            .padding(.horizontal, HomeLandscapeLayout.contentPadding)
+            .padding(.top, isTight ? 8 : 10)
+            .padding(.bottom, HomeLandscapeLayout.contentPadding)
+            .frame(minHeight: cardHeight, alignment: .bottom)
         }
-        .frame(height: HomeLandscapeLayout.cardHeight(width: viewportSize.width - 32, viewportHeight: viewportSize.height))
+        .clipShape(HomeLandscapeLayout.cardShape)
+        .overlay(HomeLandscapeLayout.cardShape.stroke(.white.opacity(0.42), lineWidth: 1))
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("homeLandscapeCard")
         .onAppear { sheepAnimating = true }
     }
 
