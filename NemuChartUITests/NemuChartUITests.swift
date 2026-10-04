@@ -18,6 +18,24 @@ final class NemuChartUITests: XCTestCase {
         XCTAssertTrue(app.buttons["7日間の分析を見る"].waitForExistence(timeout: 5))
     }
 
+    func testCollectionMatchesLandscapeAndShowsUnlockProgress() {
+        let app = XCUIApplication()
+        app.launchEnvironment["NEMUCHART_UI_TESTING"] = "1"
+        app.launch()
+        completeOnboarding(in: app)
+        dismissWeeklyGoalPromptIfNeeded(in: app)
+
+        app.buttons["コレクション"].tap()
+        XCTAssertTrue(app.navigationBars["コレクション"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["ひつじの景色"].exists)
+        XCTAssertTrue(app.staticTexts["小物"].exists)
+
+        let screenshot = XCTAttachment(screenshot: app.screenshot())
+        screenshot.name = "Collection landscape design"
+        screenshot.lifetime = .keepAlways
+        add(screenshot)
+    }
+
     func testFreshInstallShowsDataShortageWithoutFakeValues() {
         let app = XCUIApplication()
         app.launchEnvironment["NEMUCHART_UI_TESTING"] = "1"

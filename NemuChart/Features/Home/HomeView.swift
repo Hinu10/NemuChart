@@ -114,28 +114,11 @@ struct HomeView: View {
             )
         }
         .sheet(isPresented: $showingCollection) {
-            NavigationStack {
-                List {
-                    ForEach(SheepCollectible.Category.allCases, id: \.self) { category in
-                        Section(category.rawValue) {
-                            ForEach(SheepCollectible.all.filter { $0.category == category }) { item in
-                                let unlocked = preferenceData.unlockedContentIDs.contains(item.id)
-                                Label {
-                                    VStack(alignment: .leading) {
-                                        Text(unlocked ? item.name : "？？？")
-                                        if !unlocked { Text("成長値 \(item.requiredGrowth) で解放").font(.caption).foregroundStyle(.secondary) }
-                                    }
-                                } icon: {
-                                    Image(systemName: unlocked ? item.symbol : "questionmark.square.dashed")
-                                        .foregroundStyle(unlocked ? .indigo : .secondary)
-                                }
-                            }
-                        }
-                    }
-                }
-                .navigationTitle("コレクション")
-                .toolbar { Button("閉じる") { showingCollection = false } }
-            }
+            SheepCollectionView(
+                growthPoints: growth.points.value,
+                unlockedIDs: preferenceData.unlockedContentIDs,
+                sheepAssetName: sheepAssetName
+            )
         }
         .sheet(isPresented: $showingHistory) {
             RecordHistoryView(
