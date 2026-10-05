@@ -25,6 +25,11 @@ final class NemuChartUITests: XCTestCase {
         completeOnboarding(in: app)
         dismissWeeklyGoalPromptIfNeeded(in: app)
 
+        let homeScreenshot = XCTAttachment(screenshot: app.screenshot())
+        homeScreenshot.name = "Home landscape design"
+        homeScreenshot.lifetime = .keepAlways
+        add(homeScreenshot)
+
         app.buttons["コレクション"].tap()
         XCTAssertTrue(app.navigationBars["コレクション"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["ひつじの景色"].exists)
@@ -98,6 +103,12 @@ final class NemuChartUITests: XCTestCase {
 
         XCTAssertTrue(app.navigationBars["今日の結果"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.otherElements["dailyScoreSummary"].waitForExistence(timeout: 3) || app.staticTexts["100点中"].exists)
+
+        app.buttons["閉じる"].tap()
+        app.buttons["過去の記録"].tap()
+        XCTAssertTrue(app.navigationBars["過去の記録"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "点数 ")).firstMatch.exists)
+        XCTAssertFalse(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "スッキリ度 ")).firstMatch.exists)
     }
 
     func testSleepRecordFormKeepsMVPInputFieldsSimpleAndDateAware() {

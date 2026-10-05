@@ -11,6 +11,7 @@ struct RecordHistoryView: View {
     var onChanged: () -> Void = {}
     @Environment(\.dismiss) private var dismiss
     @State private var records: [SleepRecord] = []
+    @State private var scoresByRecordID: [UUID: Int] = [:]
     @State private var selectedRecord: SleepRecord?
     @State private var errorMessage: String?
     @State private var pendingDeletion: SleepRecord?
@@ -28,12 +29,12 @@ struct RecordHistoryView: View {
                             VStack(alignment: .leading, spacing: 6) {
                                 Text(record.sleepDay.key).font(.headline)
                                 if record.isAllNighter {
-                                    Text("徹夜 ・ 睡眠時間 0時間")
+                                    Text("徹夜 ・ 睡眠時間 0時間 ・ 点数 \(scoresByRecordID[record.id] ?? 0) / 100")
                                         .font(.subheadline).foregroundStyle(.secondary)
                                 } else {
                                     Text("睡眠 \(timeRangeText(record))")
                                         .font(.subheadline).bold()
-                                    Text("\(durationText(record.sleepDuration)) ・ スッキリ度 \(record.freshnessValue) / 100")
+                                    Text("\(durationText(record.sleepDuration)) ・ 点数 \(scoresByRecordID[record.id] ?? 0) / 100")
                                         .font(.subheadline).foregroundStyle(.secondary)
                                 }
                             }
@@ -75,7 +76,13 @@ struct RecordHistoryView: View {
     }
 
     private func load() {
-        do { records = try repository.records() }
+        do {
+            let loadedRecords = try repository.records()
+            scoresByRecordID = try Dictionary(uniqueKeysWithValues: loadedRecords.map {
+                ($0.id, try scoringService.score(record: $0, settings: settings).total)
+            })
+            records = loadedRecords
+        }
         catch { errorMessage = error.localizedDescription }
     }
 
