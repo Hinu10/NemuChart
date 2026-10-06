@@ -107,41 +107,103 @@ struct LongTermReportService: Sendable {
     }
 }
 
+/// CSV と JSON は同じ列・同じキー名・同じ順番で書き出す。空欄（未入力）と false / 0 は区別する。
+/// 日時は記録したタイムゾーンの時刻（例: 2026-10-06T07:00:00+09:00）で書き出す。
 struct SleepDataExportService: Sendable {
+    enum Value: Equatable {
+        case text(String)
+        case number(Int)
+        case flag(Bool)
+        case date(Date, TimeZone)
+        case missing
+    }
+
+    static let columns = [
+        "記録ID", "睡眠日", "タイムゾーン", "就床日時", "入眠日時", "起床日時", "スッキリ度(0-100)",
+        "徹夜", "中途覚醒(回)", "スヌーズ(回)", "昼寝(分)", "飲酒",
+        "カフェイン", "スマートフォン終了日時", "ストレス(1-5)", "快適さ(1-5)", "いびきの指摘",
+        "呼吸停止の指摘", "作成日時", "更新日時"
+    ]
+
+    /// 書き出す日付入りのファイル名。拡張子を付けないと保存先によって .txt になる。
+    static func fileName(extension ext: String, on date: Date = Date()) -> String {
+        "nemuchart-sleep-records-\(date.formatted(.iso8601.year().month().day())).\(ext)"
+    }
+
+    func rows(records: [SleepRecord]) -> [[Value]] {
+        records.sorted { $0.sleepDay < $1.sleepDay }.map { record in
+            let factors = record.factors
+            let timeZone = TimeZone(identifier: record.sleepDay.timeZoneIdentifier) ?? .current
+            func date(_ value: Date) -> Value { .date(value, timeZone) }
+            func number(_ value: Int?) -> Value { value.map(Value.number) ?? .missing }
+            func flag(_ value: Bool?) -> Value { value.map(Value.flag) ?? .missing }
+            return [
+                .text(record.id.uuidString), .text(record.sleepDay.key), .text(record.sleepDay.timeZoneIdentifier),
+                date(record.bedTime), date(record.sleepStart), date(record.wakeTime), .number(record.freshnessValue),
+                .flag(record.isAllNighter), number(factors.awakeningCount), number(factors.snoozeCount),
+                number(factors.napMinutes), flag(factors.consumedAlcohol),
+                flag(factors.consumedCaffeine), factors.smartphoneEndTime.map(date) ?? .missing,
+                number(factors.stress?.rawValue), number(factors.comfort?.rawValue), flag(factors.reportedSnoring),
+                flag(factors.reportedBreathingPause), date(record.createdAt), date(record.updatedAt)
+            ]
+        }
+    }
+
     func json(records: [SleepRecord]) throws -> Data {
         let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
-        encoder.dateEncodingStrategy = .iso8601
-        return try encoder.encode(records.sorted { $0.sleepDay < $1.sleepDay })
+        encoder.outputFormatting = [.prettyPrinted, .withoutEscapingSlashes]
+        return try encoder.encode(rows(records: records).map(JSONRow.init))
     }
 
     func csv(records: [SleepRecord]) -> Data {
-        let header = [
-            "id", "sleepDay", "timeZone", "bedTime", "sleepStart", "wakeTime", "freshness",
-            "isAllNighter", "awakeningCount", "snoozeCount", "secondSleepMinutes", "napMinutes", "consumedAlcohol",
-            "consumedCaffeine", "smartphoneEndTime", "stress", "comfort", "reportedSnoring",
-            "reportedBreathingPause", "createdAt", "updatedAt"
-        ]
-        let formatter = ISO8601DateFormatter()
-        let rows = records.sorted { $0.sleepDay < $1.sleepDay }.map { record in
-            let factors = record.factors
-            return [
-                record.id.uuidString, record.sleepDay.key, record.sleepDay.timeZoneIdentifier,
-                formatter.string(from: record.bedTime), formatter.string(from: record.sleepStart),
-                formatter.string(from: record.wakeTime), String(record.freshnessValue),
-                String(record.isAllNighter), text(factors.awakeningCount), text(factors.snoozeCount), text(factors.secondSleepMinutes),
-                text(factors.napMinutes), text(factors.consumedAlcohol), text(factors.consumedCaffeine),
-                factors.smartphoneEndTime.map(formatter.string(from:)) ?? "", text(factors.stress?.rawValue),
-                text(factors.comfort?.rawValue), text(factors.reportedSnoring), text(factors.reportedBreathingPause),
-                formatter.string(from: record.createdAt), formatter.string(from: record.updatedAt)
-            ].map(escape).joined(separator: ",")
-        }
-        return ([header.joined(separator: ",")] + rows).joined(separator: "\n").data(using: .utf8)!
+        let lines = rows(records: records).map { $0.map { escape(text($0)) }.joined(separator: ",") }
+        return ([Self.columns.joined(separator: ",")] + lines).joined(separator: "\n").data(using: .utf8)!
     }
 
-    private func text<T>(_ value: T?) -> String { value.map(String.init(describing:)) ?? "" }
+    private func text(_ value: Value) -> String {
+        switch value {
+        case .text(let text): text
+        case .number(let number): String(number)
+        case .flag(let flag): String(flag)
+        case .date(let date, let timeZone): Self.format(date, in: timeZone)
+        case .missing: ""
+        }
+    }
+
+    fileprivate static func format(_ date: Date, in timeZone: TimeZone) -> String {
+        let formatter = ISO8601DateFormatter()
+        formatter.timeZone = timeZone
+        return formatter.string(from: date)
+    }
+
     private func escape(_ value: String) -> String {
         guard value.contains(",") || value.contains("\"") || value.contains("\n") else { return value }
         return "\"\(value.replacingOccurrences(of: "\"", with: "\"\""))\""
+    }
+
+    /// 列の順番どおりにキーを並べ、未入力は null にする。
+    private struct JSONRow: Encodable {
+        let values: [Value]
+
+        struct Key: CodingKey {
+            let stringValue: String
+            init(stringValue: String) { self.stringValue = stringValue }
+            var intValue: Int? { nil }
+            init?(intValue: Int) { nil }
+        }
+
+        func encode(to encoder: Encoder) throws {
+            var container = encoder.container(keyedBy: Key.self)
+            for (column, value) in zip(SleepDataExportService.columns, values) {
+                let key = Key(stringValue: column)
+                switch value {
+                case .text(let text): try container.encode(text, forKey: key)
+                case .number(let number): try container.encode(number, forKey: key)
+                case .flag(let flag): try container.encode(flag, forKey: key)
+                case .date(let date, let timeZone): try container.encode(SleepDataExportService.format(date, in: timeZone), forKey: key)
+                case .missing: try container.encodeNil(forKey: key)
+                }
+            }
+        }
     }
 }

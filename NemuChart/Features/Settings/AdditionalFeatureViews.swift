@@ -164,56 +164,59 @@ struct AlarmResultsView: View {
     }
 }
 
-private struct CSVExport: Transferable {
-    let data: Data
-    static var transferRepresentation: some TransferRepresentation {
-        DataRepresentation(exportedContentType: .commaSeparatedText) { $0.data }
-    }
-}
-
-private struct JSONExport: Transferable {
-    let data: Data
-    static var transferRepresentation: some TransferRepresentation {
-        DataRepresentation(exportedContentType: .json) { $0.data }
-    }
-}
-
 struct DataExportView: View {
     let dependencies: AppDependencies
-    @State private var csv = Data()
-    @State private var json = Data()
+    @State private var csvURL: URL?
+    @State private var jsonURL: URL?
     @State private var count = 0
     @State private var errorMessage: String?
 
     var body: some View {
         List {
             Section("書き出す内容") {
-                Text("睡眠日、タイムゾーン、就床・入眠・起床時刻、スッキリ度、任意の生活要因、作成・更新日時を含む\(count)件です。空欄と false / 0 は区別されます。")
+                Text("睡眠日、タイムゾーン、就床・入眠・起床時刻、スッキリ度（0〜100）、任意の生活要因、作成・更新日時を含む\(count)件です。CSVとJSONは同じ項目・同じ名前で、日時は記録した地域の時刻です。未入力はCSVでは空欄、JSONでは null になり、false / 0 とは区別されます。")
                     .font(.footnote)
             }
             Section("形式") {
-                ShareLink(item: CSVExport(data: csv), preview: SharePreview("nemuchart-sleep-records.csv")) {
-                    Label("CSVを共有", systemImage: "tablecells")
-                }.disabled(count == 0)
-                ShareLink(item: JSONExport(data: json), preview: SharePreview("nemuchart-sleep-records.json")) {
-                    Label("JSONを共有", systemImage: "curlybraces")
-                }.disabled(count == 0)
+                // データのまま渡すと共有先によって .txt で保存されるため、拡張子付きのファイルとして渡す。
+                if let csvURL, let jsonURL {
+                    ShareLink(item: csvURL) {
+                        Label("CSVを共有", systemImage: "tablecells")
+                    }
+                    ShareLink(item: jsonURL) {
+                        Label("JSONを共有", systemImage: "curlybraces")
+                    }
+                } else {
+                    Label("CSVを共有", systemImage: "tablecells").foregroundStyle(.secondary)
+                    Label("JSONを共有", systemImage: "curlybraces").foregroundStyle(.secondary)
+                }
             }
-            Section { Text("共有先を選ぶまでデータは端末外へ送信されません。一時ファイルは作成せず、共有シートへデータを渡します。")
+            Section { Text("共有先を選ぶまでデータは端末外へ送信されません。書き出し用のファイルはアプリ内の一時フォルダに作り、この画面を閉じると削除します。")
                 .font(.footnote).foregroundStyle(.secondary) }
         }
         .navigationTitle("データ書き出し")
         .task { load() }
+        .onDisappear { try? FileManager.default.removeItem(at: Self.exportDirectory) }
         .alert("書き出せませんでした", isPresented: Binding(
             get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } }
         )) { Button("OK", role: .cancel) {} } message: { Text(errorMessage ?? "") }
     }
+
+    private static let exportDirectory = FileManager.default.temporaryDirectory.appendingPathComponent("Export", isDirectory: true)
+
     private func load() {
         do {
             let records = try dependencies.sleepRecordRepository.records()
             count = records.count
-            csv = dependencies.exportService.csv(records: records)
-            json = try dependencies.exportService.json(records: records)
+            guard !records.isEmpty else { return }
+            let directory = Self.exportDirectory
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            let csv = directory.appendingPathComponent(SleepDataExportService.fileName(extension: "csv"))
+            let json = directory.appendingPathComponent(SleepDataExportService.fileName(extension: "json"))
+            try dependencies.exportService.csv(records: records).write(to: csv, options: [.atomic, .completeFileProtection])
+            try dependencies.exportService.json(records: records).write(to: json, options: [.atomic, .completeFileProtection])
+            csvURL = csv
+            jsonURL = json
         } catch { errorMessage = error.localizedDescription }
     }
 }

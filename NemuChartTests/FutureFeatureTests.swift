@@ -39,13 +39,33 @@ final class FutureFeatureTests: XCTestCase {
         let csv = String(decoding: service.csv(records: [missing, explicit]), as: UTF8.self)
         XCTAssertTrue(csv.contains(",0,"))
         XCTAssertTrue(csv.contains(",false,"))
-        XCTAssertTrue(csv.contains("timeZone"))
+        XCTAssertTrue(csv.contains("タイムゾーン"))
 
         let object = try JSONSerialization.jsonObject(with: service.json(records: [missing, explicit])) as! [[String: Any]]
         XCTAssertEqual(object.count, 2)
-        let factors = object[1]["factors"] as! [String: Any]
-        XCTAssertEqual(factors["awakeningCount"] as? Int, 0)
-        XCTAssertEqual(factors["consumedAlcohol"] as? Bool, false)
+        XCTAssertEqual(object[1]["中途覚醒(回)"] as? Int, 0)
+        XCTAssertEqual(object[1]["飲酒"] as? Bool, false)
+        XCTAssertTrue(object[0]["中途覚醒(回)"] is NSNull)
+    }
+
+    func testCSVAndJSONShareColumns() throws {
+        let service = SleepDataExportService()
+        let record = try makeRecord(daysBeforeEnd: 0)
+        let csv = String(decoding: service.csv(records: [record]), as: UTF8.self)
+        let header = try XCTUnwrap(csv.split(separator: "\n").first).split(separator: ",").map(String.init)
+        let object = try JSONSerialization.jsonObject(with: service.json(records: [record])) as! [[String: Any]]
+        XCTAssertEqual(header, SleepDataExportService.columns)
+        XCTAssertEqual(Set(object[0].keys), Set(SleepDataExportService.columns))
+        XCTAssertEqual(object[0]["睡眠日"] as? String, record.sleepDay.key)
+        XCTAssertEqual(object[0]["スッキリ度(0-100)"] as? Int, record.freshnessValue)
+        XCTAssertTrue((object[0]["起床日時"] as? String)?.hasSuffix("+09:00") == true)
+    }
+
+    func testExportFileNamesHaveDateAndExtension() {
+        let date = TestFixtures.date(2026, 10, 6, 12, 0)
+        XCTAssertTrue(SleepDataExportService.fileName(extension: "csv", on: date).hasPrefix("nemuchart-sleep-records-2026"))
+        XCTAssertTrue(SleepDataExportService.fileName(extension: "csv", on: date).hasSuffix(".csv"))
+        XCTAssertTrue(SleepDataExportService.fileName(extension: "json", on: date).hasSuffix(".json"))
     }
 
     func testLongTermReportThresholdAndBuckets() throws {
