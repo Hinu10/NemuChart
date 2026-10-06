@@ -4,7 +4,6 @@ struct TonightGoalView: View {
     let settings: UserSettings
     let repository: any SleepGoalRepository
     let preferences: AppPreferencesStore
-    let notificationService: (any LocalNotificationServiceProtocol)?
     let onSaved: () -> Void
     @Environment(\.dismiss) private var dismiss
     @State private var wakeTime: Date
@@ -26,13 +25,11 @@ struct TonightGoalView: View {
         repository: any SleepGoalRepository,
         preferences: AppPreferencesStore,
         planningService: GoalPlanningService = GoalPlanningService(),
-        notificationService: (any LocalNotificationServiceProtocol)? = nil,
         onSaved: @escaping () -> Void = {}
     ) {
         self.settings = settings
         self.repository = repository
         self.preferences = preferences
-        self.notificationService = notificationService
         self.onSaved = onSaved
         let plan = planningService.plan(settings: settings, records: records)
         // 今日すでに保存した目標があれば、開き直しても提案値に戻さずその時刻を出す。
@@ -132,9 +129,7 @@ struct TonightGoalView: View {
             preference.actionGoal = actionGoal
             preference.alarmSound = alarmSound
             try preferences.save(preference)
-            if settings.notificationPreference.isEnabledInApp {
-                Task { try? await notificationService?.scheduleWindDown(before: bed) }
-            }
+            // 休む準備の通知は、開いた時刻で変わる目安時間ではなく設定から決める（設定画面と起動時に予約する）。
         } catch { errorMessage = error.localizedDescription }
     }
 

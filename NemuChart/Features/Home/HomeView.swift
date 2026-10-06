@@ -163,8 +163,7 @@ struct HomeView: View {
                 records: records,
                 repository: dependencies.sleepGoalRepository,
                 preferences: dependencies.preferences,
-                planningService: dependencies.goalPlanningService,
-                notificationService: dependencies.notificationService
+                planningService: dependencies.goalPlanningService
             )
         }
         .sheet(isPresented: $showingSettings, onDismiss: loadDashboard) {

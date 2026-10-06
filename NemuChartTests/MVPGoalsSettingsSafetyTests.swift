@@ -106,6 +106,14 @@ final class MVPGoalsSettingsSafetyTests: XCTestCase {
         XCTAssertEqual(planner.notificationMinutes(before: LocalTime(hour: 23, minute: 0)!), 22 * 60 + 30)
     }
 
+    func testWindDownBedTimeComesFromWakeTimeAndSleepDuration() {
+        let planner = WindDownNotificationPlanner()
+        let bed = planner.bedTime(wake: LocalTime(hour: 7, minute: 0)!, sleepDuration: 8 * 3600)
+        XCTAssertEqual(bed, LocalTime(hour: 23, minute: 0)!)
+        XCTAssertEqual(planner.notificationMinutes(before: bed), 22 * 60 + 30)
+        XCTAssertEqual(planner.bedTime(wake: LocalTime(hour: 9, minute: 30)!, sleepDuration: 7.5 * 3600), LocalTime(hour: 2, minute: 0)!)
+    }
+
     func testSafetyGuidanceRequiresThreeRecordsAndHonorsCooldown() throws {
         let service = SafetyGuidanceService()
         let two = try [13, 14].map { try TestFixtures.sleepRecord(day: $0, freshness: .veryTired) }

@@ -73,6 +73,7 @@ struct AppRootView: View {
         async let minimumDisplay: Void = waitForMinimumDisplay(skipsDelay: skipsDelay)
         do {
             settings = try dependencies.userSettingsRepository.load()
+            rescheduleWindDownIfNeeded()
             // ホームが週間目標の画面を出す前に決めておく。
             prepareWhatsNew()
             _ = await minimumDisplay
@@ -92,6 +93,13 @@ struct AppRootView: View {
     private var currentVersion: String? {
         guard ProcessInfo.processInfo.environment["NEMUCHART_UI_TESTING"] != "1" else { return nil }
         return Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String
+    }
+
+    /// 以前の版で「今夜の目標」を開いた時刻から予約された通知を、設定から決めた時刻に置き換える。
+    private func rescheduleWindDownIfNeeded() {
+        guard let settings, settings.notificationPreference.isEnabledInApp else { return }
+        let bedTime = WindDownNotificationPlanner().bedTime(wake: settings.standardWakeTime, sleepDuration: settings.desiredSleepDuration)
+        Task { try? await dependencies.notificationService.scheduleWindDown(before: bedTime) }
     }
 
     /// アップデート後の初回起動なら「今回の変更」を出す。

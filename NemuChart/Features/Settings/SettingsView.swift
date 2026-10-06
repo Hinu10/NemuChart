@@ -82,7 +82,7 @@ struct SettingsView: View {
                             if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
                         }
                     }
-                    Text("目標ベッド時刻の30分前に、端末を置くための案内を1件予約します。通知の配信は保証されません。初期状態はOFFです。")
+                    Text("休む準備の通知は、通常の起床時刻と快眠だと思う睡眠時間から決めた就寝時刻の30分前に、毎日届きます。朝の記録通知は、通常の起床時刻に毎日届きます。どちらも通知音が鳴ります。通知の配信は保証されません。初期状態はOFFです。")
                         .font(.footnote).foregroundStyle(.secondary)
                 }
                 Section("今週の目標") {
@@ -197,8 +197,7 @@ struct SettingsView: View {
                 records: (try? dependencies.sleepRecordRepository.records()) ?? [],
                 repository: dependencies.sleepGoalRepository,
                 preferences: dependencies.preferences,
-                planningService: dependencies.goalPlanningService,
-                notificationService: dependencies.notificationService
+                planningService: dependencies.goalPlanningService
             )
         }
         .sheet(isPresented: $showingWeeklyGoal) {
@@ -247,12 +246,8 @@ struct SettingsView: View {
             )
             try dependencies.userSettingsRepository.save(updated)
             if updated.notificationPreference.isEnabledInApp {
-                Task {
-                    let goals = try? dependencies.sleepGoalRepository.goals()
-                    if let goal = goals?.first {
-                        try? await dependencies.notificationService.scheduleWindDown(before: goal.targetBedTime)
-                    }
-                }
+                let bedTime = WindDownNotificationPlanner().bedTime(wake: updated.standardWakeTime, sleepDuration: updated.desiredSleepDuration)
+                Task { try? await dependencies.notificationService.scheduleWindDown(before: bedTime) }
             } else {
                 dependencies.notificationService.cancelWindDown()
             }

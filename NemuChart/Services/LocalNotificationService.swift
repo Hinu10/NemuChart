@@ -85,6 +85,12 @@ final class LocalNotificationService: LocalNotificationServiceProtocol {
 }
 
 struct WindDownNotificationPlanner: Sendable {
+    /// 通常の起床時刻から希望する睡眠時間をさかのぼった就寝時刻。日によって変わらないので、通知が前日の操作に引きずられない。
+    func bedTime(wake: LocalTime, sleepDuration: TimeInterval) -> LocalTime {
+        let minutes = ((wake.minutesSinceMidnight - Int(sleepDuration / 60)) % (24 * 60) + 24 * 60) % (24 * 60)
+        return LocalTime(hour: minutes / 60, minute: minutes % 60)!
+    }
+
     func notificationMinutes(before targetBedTime: LocalTime, leadMinutes: Int = 30) -> Int {
         (targetBedTime.minutesSinceMidnight - leadMinutes + 24 * 60) % (24 * 60)
     }

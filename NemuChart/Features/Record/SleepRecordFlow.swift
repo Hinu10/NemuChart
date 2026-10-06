@@ -88,8 +88,7 @@ struct SleepRecordFlow: View {
                     settings: settings,
                     records: (try? repository.records()) ?? [],
                     repository: goalRepository,
-                    preferences: preferences,
-                    notificationService: notificationService
+                    preferences: preferences
                 ) { dismiss() }
             }
         }
