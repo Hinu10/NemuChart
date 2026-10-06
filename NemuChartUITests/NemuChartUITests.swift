@@ -12,7 +12,6 @@ final class NemuChartUITests: XCTestCase {
         completeOnboarding(in: app)
         dismissWeeklyGoalPromptIfNeeded(in: app)
 
-        XCTAssertTrue(app.images["ねむちゃーと"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["記録する"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.buttons["時間帯にかかわらず記録する"].exists)
         XCTAssertTrue(app.buttons["7日間の分析を見る"].waitForExistence(timeout: 5))
@@ -142,11 +141,9 @@ final class NemuChartUITests: XCTestCase {
         XCTAssertFalse(app.staticTexts["二度寝"].exists)
         XCTAssertFalse(app.switches["スマートフォン終了時刻を記録"].exists)
 
-        // 未入力と区別するため、スマートフォン終了日時はボタンを押したときだけ入力欄を出す。
+        // スマートフォン終了日時は記録しない。
         XCTAssertFalse(app.datePickers["smartphoneEndDateTimePicker"].exists)
-        XCTAssertTrue(scrollToElement(app.buttons["smartphoneEndTimeEntryButton"], in: app))
-        app.buttons["smartphoneEndTimeEntryButton"].tap()
-        XCTAssertTrue(app.datePickers["smartphoneEndDateTimePicker"].waitForExistence(timeout: 3))
+        XCTAssertFalse(app.buttons["smartphoneEndTimeEntryButton"].exists)
     }
 
     func testHomeRendersWithAccessibilityTextSizeAndDarkMode() {

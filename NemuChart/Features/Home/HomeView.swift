@@ -50,20 +50,13 @@ struct HomeView: View {
             NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: contentSpacing) {
-                    Image("NemuChartLogoCropped")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(maxWidth: 300)
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .frame(height: isShortPortrait ? 42 : isMediumPortrait ? 50 : 56)
-                        .accessibilityLabel("ねむちゃーと")
                     topSummaryCarousel(height: isShortPortrait ? 130 : isMediumPortrait ? 158 : 176)
                     landscapeCard(viewportSize: rootProxy.size)
                     if let safetyGuidance { safetyCard(safetyGuidance) }
                     if let upcomingAlarm {
                         alarmRow(upcomingAlarm)
-                    } else if needsAlarmReminder {
-                        alarmReminderRow
+                    } else if isAlarmAvailable {
+                        alarmOffRow
                     }
                     Button {
                         showingRecordDayChoices = true
@@ -182,7 +175,9 @@ struct HomeView: View {
         }
         .task {
             loadDashboard()
-            if UserDefaults.standard.bool(forKey: "NemuChart.pendingMorningRecord") {
+            // アプリが終了した状態で「起きた！」を押したときも、起きた時刻を記録画面へ入れる。
+            if UserDefaults.standard.object(forKey: "NemuChart.alarmWakeTime") != nil ||
+                UserDefaults.standard.bool(forKey: "NemuChart.pendingMorningRecord") {
                 openRecordingFromMorning()
             }
         }
@@ -205,7 +200,7 @@ struct HomeView: View {
 
     private func topSummaryCarousel(height: CGFloat) -> some View {
         let cards = availableCarouselCards
-        return VStack(spacing: 8) {
+        return VStack(spacing: 2) {
             if dynamicTypeSize.isAccessibilitySize {
                 ForEach(cards) { card in
                     carouselCard(card)
@@ -223,6 +218,8 @@ struct HomeView: View {
                 carouselPageButtons(cards)
             }
         }
+        // 4枚とも同じ大きさ・同じ角丸の箱にそろえる。
+        .groupBoxStyle(HomeCarouselGroupBoxStyle())
         .onAppear { normalizeCarouselSelection(for: cards) }
         .onChange(of: preferenceData.weeklyGoal?.id) { _, _ in
             normalizeCarouselSelection(for: availableCarouselCards)
@@ -231,7 +228,7 @@ struct HomeView: View {
     }
 
     private var availableCarouselCards: [HomeCarouselCard] {
-        return [.weeklyGoal, .greeting, .latestScore, .guidance]
+        return [.weeklyGoal, .greeting, .weeklyRecord, .latestScore, .guidance]
     }
 
     @ViewBuilder
@@ -245,6 +242,8 @@ struct HomeView: View {
             }
         case .greeting:
             greetingHeader
+        case .weeklyRecord:
+            weeklyRecordCard
         case .latestScore:
             latestScoreCard
         case .guidance:
@@ -273,7 +272,8 @@ struct HomeView: View {
                         }
                 }
                 .buttonStyle(.plain)
-                .frame(width: 44, height: 44)
+                // 景色のカードとの間を詰めるため高さは控えめにし、横幅でタップしやすさを保つ。
+                .frame(width: 44, height: 26)
                 .accessibilityLabel("\(card.accessibilityTitle)へ移動")
                 .accessibilityAddTraits(card == carouselSelection ? [.isSelected] : [])
             }
@@ -320,12 +320,10 @@ struct HomeView: View {
             )
             .frame(height: artworkHeight)
             .accessibilityLabel(sceneAccessibilityLabel)
-            Spacer(minLength: 0)
             compactLandscapeSummary(isTight: isTight)
                 .padding(.horizontal, HomeLandscapeLayout.contentPadding)
                 .padding(.bottom, HomeLandscapeLayout.contentPadding)
         }
-        .frame(minHeight: cardHeight)
         .background(HomeLandscapeLayout.statusBackground)
         .clipShape(HomeLandscapeLayout.cardShape)
         .overlay(HomeLandscapeLayout.cardShape.stroke(.white.opacity(0.42), lineWidth: 1))
@@ -338,59 +336,52 @@ struct HomeView: View {
     }
 
     /// アラームを使ったことがあり、夕方以降なのに今夜の分をセットしていないとき。押し忘れに気づけるようにする。
-    private var needsAlarmReminder: Bool {
-        guard #available(iOS 26.0, *) else { return false }
-        return !preferenceData.alarmResults.isEmpty && (period == .evening || period == .night)
+    private var isAlarmAvailable: Bool {
+        if #available(iOS 26.0, *) { return true }
+        return false
     }
 
-    private var alarmReminderRow: some View {
-        Button {
-            showingTonightGoal = true
-        } label: {
-            HStack(spacing: 12) {
-                Image(systemName: "alarm")
-                    .font(.title3)
-                    .foregroundStyle(.orange)
-                    .accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("今夜のアラームはまだセットしていません")
-                        .font(.system(.headline, design: .rounded))
-                    Text("「今夜の目標」でセットすると鳴ります")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer(minLength: 0)
-                Image(systemName: "chevron.right")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.tertiary)
-                    .accessibilityHidden(true)
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-        }
-        .buttonStyle(.plain)
-        .accessibilityHint("今夜の目標とアラームを開きます")
+    /// アラームを使ったことがあり、夕方以降なのに今夜の分をセットしていないときは押し忘れとして目立たせる。
+    private var needsAlarmReminder: Bool {
+        !preferenceData.alarmResults.isEmpty && (period == .evening || period == .night)
+    }
+
+    private var alarmOffRow: some View {
+        alarmCard(
+            symbol: "alarm",
+            tint: needsAlarmReminder ? .orange : .secondary,
+            title: needsAlarmReminder ? String(localized: "今夜のアラームはまだセットしていません") : String(localized: "アラームはセットされていません"),
+            subtitle: String(localized: "タップすると「今夜の目標」でセットできます")
+        )
     }
 
     private func alarmRow(_ alarm: (date: Date, sound: AlarmSoundChoice, isSnoozed: Bool)) -> some View {
         let day = Calendar.current.isDateInToday(alarm.date) ? String(localized: "今日") : String(localized: "明日")
         let time = alarm.date.formatted(date: .omitted, time: .shortened)
-        return Button {
+        return alarmCard(
+            symbol: alarm.isSnoozed ? "zzz" : "alarm.fill",
+            tint: .indigo,
+            title: alarm.isSnoozed ? String(localized: "スヌーズ中・\(time)にもう一度鳴ります") : String(localized: "アラーム \(day) \(time)"),
+            subtitle: alarm.sound.displayName
+        )
+    }
+
+    private func alarmCard(symbol: String, tint: Color, title: String, subtitle: String) -> some View {
+        Button {
             showingTonightGoal = true
         } label: {
             HStack(spacing: 12) {
-                Image(systemName: alarm.isSnoozed ? "zzz" : "alarm.fill")
+                Image(systemName: symbol)
                     .font(.title3)
-                    .foregroundStyle(.indigo)
+                    .foregroundStyle(tint)
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(alarm.isSnoozed ? "スヌーズ中・\(time)にもう一度鳴ります" : "アラーム \(day) \(time)")
+                    Text(title)
                         .font(.system(.headline, design: .rounded))
-                    Text(alarm.sound.displayName)
+                    Text(subtitle)
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 0)
                 Image(systemName: "chevron.right")
@@ -412,9 +403,9 @@ struct HomeView: View {
             greetingHeaderContent(isCompact: false)
             greetingHeaderContent(isCompact: true)
         }
-        .padding(18)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 22))
+        .padding(HomeCarouselGroupBoxStyle.padding)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        .background(.thinMaterial, in: HomeCarouselGroupBoxStyle.shape)
         .accessibilityElement(children: .combine)
     }
 
@@ -468,6 +459,36 @@ struct HomeView: View {
         }
         .fixedSize(horizontal: false, vertical: true)
         .landscapeStatusCard()
+    }
+
+    /// 今日までの7日間に記録した日数。
+    private var weeklyRecordCard: some View {
+        let recordedDayCount = weeklyMetrics?.recordedDayCount ?? 0
+        let progress = min(max(CGFloat(recordedDayCount) / 7, 0), 1)
+        return GroupBox("過去1週間の記録") {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(alignment: .firstTextBaseline, spacing: 4) {
+                    Text("\(recordedDayCount)")
+                        .font(.system(size: 38, weight: .bold, design: .rounded))
+                    Text("/ 7日")
+                        .foregroundStyle(.secondary)
+                }
+                GeometryReader { proxy in
+                    ZStack(alignment: .leading) {
+                        Capsule().fill(Color.secondary.opacity(0.18))
+                        if progress > 0 {
+                            Capsule()
+                                .fill(LinearGradient(colors: [Color.mint.opacity(0.55), Color.mint], startPoint: .leading, endPoint: .trailing))
+                                .frame(width: proxy.size.width * progress)
+                        }
+                    }
+                }
+                .frame(height: 9)
+                .accessibilityHidden(true)
+            }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("過去1週間の記録、7日中\(recordedDayCount)日")
     }
 
     private var latestScoreCard: some View {
@@ -657,55 +678,9 @@ struct HomeView: View {
                     growthSummary
                 }
             }
-            weeklyProgressSummary(isTight: isTight)
         }
         .font(.footnote)
         .frame(maxWidth: .infinity)
-    }
-
-    private func weeklyProgressSummary(isTight: Bool) -> some View {
-        let recordedDayCount = weeklyMetrics?.recordedDayCount ?? 0
-        let progress = min(max(CGFloat(recordedDayCount) / 7, 0), 1)
-
-        return VStack(alignment: .leading, spacing: isTight ? 8 : 10) {
-            HStack(alignment: .firstTextBaseline) {
-                Text("今週の記録")
-                    .font(.system(.caption, design: .rounded, weight: .semibold))
-                    .foregroundStyle(HomeLandscapeLayout.headingColor)
-                Spacer(minLength: 8)
-                Text("\(recordedDayCount) / 7日")
-                    .font(.system(.subheadline, design: .rounded, weight: .bold))
-                    .foregroundStyle(HomeLandscapeLayout.bodyColor)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.82)
-            }
-            GeometryReader { proxy in
-                ZStack(alignment: .leading) {
-                    Capsule()
-                        .fill(Color.white.opacity(0.34))
-                    if progress > 0 {
-                        Capsule()
-                            .fill(
-                                LinearGradient(
-                                    colors: [Color.white.opacity(0.96), Color.mint.opacity(0.78)],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
-                            )
-                            .frame(width: min(proxy.size.width, proxy.size.width * progress))
-                    }
-                }
-            }
-            .frame(height: 9)
-        }
-        .padding(.horizontal, HomeLandscapeLayout.statusCardPadding)
-        .padding(.vertical, isTight ? 10 : 12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.ultraThinMaterial, in: HomeLandscapeLayout.statusCardShape)
-        .overlay(
-            HomeLandscapeLayout.statusCardShape
-                .stroke(.white.opacity(0.36), lineWidth: 1)
-        )
     }
 
     private func weeklyGoalCard(_ goal: WeeklyGoal) -> some View {
@@ -938,19 +913,11 @@ struct HomeView: View {
         guard let alarmWake else { openRecording(for: .today); return }
         let night = NemuAlarmService.takeNightLog(wake: alarmWake)
         do {
-            let day = try sleepDay(for: .today)
-            if let existing = latestRecord(for: day) {
-                recordingRoute = HomeRecordingRoute(initialRecord: existing)
-            } else {
-                var draft = try draft(for: day)
-                draft.wakeTime = alarmWake
-                if let wentToBed = night.wentToBed {
-                    draft.bedClock = wentToBed
-                    draft.sleepClock = wentToBed
-                }
-                draft.snoozeCount = night.snoozeCount
-                recordingRoute = HomeRecordingRoute(initialDraft: draft)
-            }
+            let day = try dependencies.dateTimeService.sleepDay(for: alarmWake, timeZoneIdentifier: TimeZone.current.identifier)
+            // その日の記録がすでにあっても、アラームで分かった時刻で開く。保存すると同じ記録を更新する。
+            var draft = try latestRecord(for: day).map(SleepRecordDraft.init(record:)) ?? draft(for: day)
+            draft.applyAlarmNight(wake: alarmWake, wentToBed: night.wentToBed, snoozeCount: night.snoozeCount)
+            recordingRoute = HomeRecordingRoute(initialDraft: draft)
         } catch { loadError = error.localizedDescription }
     }
 
@@ -1101,6 +1068,7 @@ private struct HomeScoredRecord {
 private enum HomeCarouselCard: CaseIterable, Identifiable {
     case weeklyGoal
     case greeting
+    case weeklyRecord
     case latestScore
     case guidance
 
@@ -1110,6 +1078,7 @@ private enum HomeCarouselCard: CaseIterable, Identifiable {
         switch self {
         case .weeklyGoal: "今週の目標"
         case .greeting: "時間帯メッセージ"
+        case .weeklyRecord: "過去1週間の記録"
         case .latestScore: "直近の点数"
         case .guidance: "今日の目安"
         }
@@ -1130,6 +1099,23 @@ private enum HomeRecordDayChoice: Int, CaseIterable, Identifiable {
         case .yesterday: "昨日"
         case .twoDaysAgo: "一昨日"
         }
+    }
+}
+
+/// ホーム上部で切り替わるカードの箱。表示枠いっぱいに広げて、4枚の大きさをそろえる。
+private struct HomeCarouselGroupBoxStyle: GroupBoxStyle {
+    static let padding = CGFloat(18)
+    static let shape = RoundedRectangle(cornerRadius: 22, style: .continuous)
+
+    func makeBody(configuration: Configuration) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            configuration.label
+                .font(.headline)
+            configuration.content
+        }
+        .padding(Self.padding)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(.thinMaterial, in: Self.shape)
     }
 }
 
