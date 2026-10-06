@@ -18,6 +18,7 @@ struct TonightGoalView: View {
     @State private var previewService: AlarmSoundPreviewService?
     @State private var scheduledAlarm: (date: Date, sound: AlarmSoundChoice)?
     @State private var isScheduling = false
+    @State private var wentToBedAt: Date?
     @AppStorage("NemuChart.alarmEnabled") private var alarmEnabled = false
 
     init(
@@ -77,7 +78,7 @@ struct TonightGoalView: View {
                             Text(alarmNotice)
                                 .font(.footnote).foregroundStyle(.orange)
                         }
-                        Text("時刻や音を変えても、セットし直すまでアラームは変わりません。『起きた！』で押した時刻を記録画面に入力できます。スヌーズは\(NemuAlarmService.snoozeMinutes)分です。")
+                        Text("アラームは「セット」を押したときだけ予約されます。時刻や音を変えても、セットし直すまで前の内容で鳴ります。『起きた！』で押した時刻を記録画面に入力できます。スヌーズは\(NemuAlarmService.snoozeMinutes)分です。")
                             .font(.footnote).foregroundStyle(.secondary)
                         Text("音量や集中モードなど端末の設定によって、聞こえ方や表示が変わることがあります。音の好みや起きやすさには個人差があり、特定の音の効果を保証するものではありません。")
                             .font(.footnote).foregroundStyle(.secondary)
@@ -161,6 +162,21 @@ struct TonightGoalView: View {
                 Label("\(time)にアラームをセット", systemImage: "alarm")
             }
             .disabled(isScheduling)
+            Text("まだセットしていません。このボタンを押すまでアラームは鳴りません。")
+                .font(.footnote).foregroundStyle(.orange)
+        }
+        Button {
+            goToBedNow()
+        } label: {
+            Label("今から寝る", systemImage: "bed.double.fill")
+        }
+        .disabled(isScheduling)
+        if let wentToBedAt {
+            Text("\(wentToBedAt.formatted(date: .omitted, time: .shortened))に寝たことを記録しました。アラームの『起きた！』で、寝た時刻と起きた時刻が記録画面に入ります。")
+                .font(.footnote).foregroundStyle(.secondary)
+        } else {
+            Text("「今から寝る」を押すと、今の時刻を寝た時刻として残し、アラームがまだならこの時刻でセットします。")
+                .font(.footnote).foregroundStyle(.secondary)
         }
         if isScheduling {
             ProgressView("セットしています…")
@@ -183,6 +199,14 @@ struct TonightGoalView: View {
                 alarmNotice = error.localizedDescription
             }
         }
+    }
+
+    private func goToBedNow() {
+        let now = Date()
+        NemuAlarmService.markWentToBed(at: now)
+        wentToBedAt = now
+        let needsScheduling = scheduledAlarm.map { localTime($0.date) != localTime(wakeTime) || $0.sound != alarmSound } ?? true
+        if needsScheduling { scheduleAlarm() }
     }
 
     private func cancelAlarm() {

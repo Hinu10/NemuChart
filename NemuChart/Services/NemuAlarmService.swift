@@ -63,6 +63,8 @@ enum NemuAlarmService {
     /// スヌーズで予約し直しても、結果は最初の予約にまとめて記録する。
     private static let resultIDKey = "NemuChart.alarmResultID"
     private static let snoozeUntilKey = "NemuChart.alarmSnoozeUntil"
+    private static let wentToBedKey = "NemuChart.wentToBedAt"
+    private static let stoppedSnoozeCountKey = "NemuChart.alarmStoppedSnoozeCount"
     static let snoozeMinutes = 10
 
     /// セット済みで、まだ止めていないアラーム。スヌーズ中は次に鳴る時刻を返す。
@@ -177,7 +179,29 @@ enum NemuAlarmService {
     static func recordStop(id: UUID, at date: Date) {
         UserDefaults.standard.removeObject(forKey: snoozeUntilKey)
         let resultID = resultID(for: id)
-        update(AppPreferencesStore()) { AlarmResultLog.stopped(id: resultID, at: date, in: $0) }
+        let preferences = AppPreferencesStore()
+        update(preferences) { AlarmResultLog.stopped(id: resultID, at: date, in: $0) }
+        if let result = preferences.load().alarmResults.first(where: { $0.id == resultID }) {
+            UserDefaults.standard.set(result.snoozeCount, forKey: stoppedSnoozeCountKey)
+        }
+    }
+
+    /// 「今から寝る」を押した時刻。起きたときの記録画面で寝た時刻に入れる。
+    static func markWentToBed(at date: Date = Date()) {
+        UserDefaults.standard.set(date, forKey: wentToBedKey)
+    }
+
+    /// 起きた時刻と一緒に記録画面へ入れる、寝た時刻と止めたアラームのスヌーズ回数。一度読んだら消す。
+    /// 寝た時刻は起きた時刻の18時間前までのものだけ使う。
+    static func takeNightLog(wake: Date) -> (wentToBed: Date?, snoozeCount: Int?) {
+        let defaults = UserDefaults.standard
+        let wentToBed = (defaults.object(forKey: wentToBedKey) as? Date).flatMap { date in
+            (0..<18 * 3600).contains(wake.timeIntervalSince(date)) ? date : nil
+        }
+        let snoozeCount = defaults.object(forKey: stoppedSnoozeCountKey) as? Int
+        defaults.removeObject(forKey: wentToBedKey)
+        defaults.removeObject(forKey: stoppedSnoozeCountKey)
+        return (wentToBed, snoozeCount)
     }
 
     private static func update(_ preferences: AppPreferencesStore, _ transform: ([AlarmResult]) -> [AlarmResult]) {

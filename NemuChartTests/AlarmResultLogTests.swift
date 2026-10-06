@@ -69,6 +69,18 @@ final class AlarmResultLogTests: XCTestCase {
         }
     }
 
+    @MainActor
+    func testNightLogUsesRecentBedtimeOnlyOnce() throws {
+        let wake = Date()
+        NemuAlarmService.markWentToBed(at: wake.addingTimeInterval(-7 * 3600))
+        let bed = try XCTUnwrap(NemuAlarmService.takeNightLog(wake: wake).wentToBed)
+        XCTAssertEqual(wake.timeIntervalSince(bed), 7 * 3600, accuracy: 0.001)
+        XCTAssertNil(NemuAlarmService.takeNightLog(wake: wake).wentToBed)
+
+        NemuAlarmService.markWentToBed(at: wake.addingTimeInterval(-20 * 3600))
+        XCTAssertNil(NemuAlarmService.takeNightLog(wake: wake).wentToBed)
+    }
+
     func testVoiceSoundsHaveSpeechAndOthersDoNot() {
         XCTAssertEqual(AlarmSoundChoice.voiceMorning.speechText, "朝です。起きなさい！")
         XCTAssertNotNil(AlarmSoundChoice.voiceCountdown.speechText)

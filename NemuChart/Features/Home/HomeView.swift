@@ -60,7 +60,11 @@ struct HomeView: View {
                     topSummaryCarousel(height: isShortPortrait ? 130 : isMediumPortrait ? 158 : 176)
                     landscapeCard(viewportSize: rootProxy.size)
                     if let safetyGuidance { safetyCard(safetyGuidance) }
-                    if let upcomingAlarm { alarmRow(upcomingAlarm) }
+                    if let upcomingAlarm {
+                        alarmRow(upcomingAlarm)
+                    } else if needsAlarmReminder {
+                        alarmReminderRow
+                    }
                     Button {
                         showingRecordDayChoices = true
                     } label: {
@@ -333,6 +337,43 @@ struct HomeView: View {
         alarmEnabled ? NemuAlarmService.upcoming(in: preferenceData, now: now) : nil
     }
 
+    /// アラームを使ったことがあり、夕方以降なのに今夜の分をセットしていないとき。押し忘れに気づけるようにする。
+    private var needsAlarmReminder: Bool {
+        guard #available(iOS 26.0, *) else { return false }
+        return !preferenceData.alarmResults.isEmpty && (period == .evening || period == .night)
+    }
+
+    private var alarmReminderRow: some View {
+        Button {
+            showingTonightGoal = true
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "alarm")
+                    .font(.title3)
+                    .foregroundStyle(.orange)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("今夜のアラームはまだセットしていません")
+                        .font(.system(.headline, design: .rounded))
+                    Text("「今夜の目標」でセットすると鳴ります")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.tertiary)
+                    .accessibilityHidden(true)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .accessibilityHint("今夜の目標とアラームを開きます")
+    }
+
     private func alarmRow(_ alarm: (date: Date, sound: AlarmSoundChoice, isSnoozed: Bool)) -> some View {
         let day = Calendar.current.isDateInToday(alarm.date) ? String(localized: "今日") : String(localized: "明日")
         let time = alarm.date.formatted(date: .omitted, time: .shortened)
@@ -540,7 +581,12 @@ struct HomeView: View {
             $0.category == .background && preferenceData.unlockedContentIDs.contains($0.id)
         }
         guard !unlocked.isEmpty else { return nil }
-        let preferred: String = period == .night ? "stars" : period == .morning ? "morning" : "sunset"
+        let preferred = switch period {
+        case .morning: "morning"
+        case .daytime: "garden"
+        case .evening: "sunset"
+        case .night: "stars"
+        }
         if let match = unlocked.first(where: { $0.id == preferred }) { return match }
         return unlocked[(Calendar.current.component(.day, from: now) / 2) % unlocked.count]
     }
@@ -890,6 +936,7 @@ struct HomeView: View {
         let alarmWake = UserDefaults.standard.object(forKey: "NemuChart.alarmWakeTime") as? Date
         UserDefaults.standard.removeObject(forKey: "NemuChart.alarmWakeTime")
         guard let alarmWake else { openRecording(for: .today); return }
+        let night = NemuAlarmService.takeNightLog(wake: alarmWake)
         do {
             let day = try sleepDay(for: .today)
             if let existing = latestRecord(for: day) {
@@ -897,6 +944,11 @@ struct HomeView: View {
             } else {
                 var draft = try draft(for: day)
                 draft.wakeTime = alarmWake
+                if let wentToBed = night.wentToBed {
+                    draft.bedClock = wentToBed
+                    draft.sleepClock = wentToBed
+                }
+                draft.snoozeCount = night.snoozeCount
                 recordingRoute = HomeRecordingRoute(initialDraft: draft)
             }
         } catch { loadError = error.localizedDescription }
