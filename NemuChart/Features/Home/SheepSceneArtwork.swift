@@ -10,7 +10,6 @@ struct SheepSceneArtwork: View {
     var animate: Bool = false
     var fadeIntoStatus: Bool = false
     var nightMode: Bool = false
-    @State private var floating = false
 
     private var isNight: Bool { nightMode || backgroundID == "stars" || effectID == "moonlight" }
 
@@ -132,9 +131,11 @@ struct SheepSceneArtwork: View {
                     .resizable()
                     .scaledToFit()
                     .frame(width: height * 0.9, height: height * 0.9)
-                    // Scope the endless animation to the float offset so layout changes are not animated forever.
-                    .animation(animate ? .easeInOut(duration: 3.4).repeatForever(autoreverses: true) : nil) {
-                        $0.offset(y: animate ? (floating ? -3 : 2) : 0)
+                    // Animate only the float offset so layout changes (e.g. large text) never slide the sheep away.
+                    .phaseAnimator(animate ? [false, true] : [false]) { content, isUp in
+                        content.offset(y: animate ? (isUp ? -3 : 2) : 0)
+                    } animation: { _ in
+                        .easeInOut(duration: 3.4)
                     }
                     .shadow(color: Color(red: 0.12, green: 0.25, blue: 0.35).opacity(0.18), radius: 8, y: 7)
                     .position(x: width * 0.5, y: height * 0.60)
@@ -155,7 +156,6 @@ struct SheepSceneArtwork: View {
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("ひつじの景色")
-        .onAppear { floating = true }
     }
 
     private func hillColor(back: Bool) -> LinearGradient {
