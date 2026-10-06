@@ -71,6 +71,11 @@ final class NemuChartUITests: XCTestCase {
         XCTAssertTrue(scrollToElement(app.buttons["tonightGoalAndAlarmButton"], in: app))
         app.buttons["tonightGoalAndAlarmButton"].tap()
         XCTAssertTrue(app.navigationBars["今夜の目標"].waitForExistence(timeout: 3))
+        let previewButton = app.buttons["音を試聴"]
+        XCTAssertTrue(scrollToElement(previewButton, in: app))
+        previewButton.tap()
+        XCTAssertEqual(app.state, .runningForeground)
+        XCTAssertTrue(app.navigationBars["今夜の目標"].waitForExistence(timeout: 3))
         app.navigationBars["今夜の目標"].buttons["閉じる"].tap()
         XCTAssertTrue(app.navigationBars["設定"].waitForExistence(timeout: 3))
 

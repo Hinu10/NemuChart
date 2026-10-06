@@ -159,7 +159,10 @@ struct TonightGoalView: View {
             let service = previewService ?? AlarmSoundPreviewService()
             previewService = service
             try service.play(alarmSound)
-        } catch { errorMessage = error.localizedDescription }
+            alarmNotice = nil
+        } catch {
+            alarmNotice = String(localized: "音を再生できませんでした。ほかのアプリが音を使っていないか確認して、もう一度お試しください。")
+        }
     }
 
     private func localTime(_ date: Date) -> LocalTime {

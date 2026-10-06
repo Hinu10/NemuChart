@@ -144,23 +144,28 @@ final class AlarmSoundPreviewService {
     private let engine = AVAudioEngine()
     private let player = AVAudioPlayerNode()
     private let speaker = AVSpeechSynthesizer()
+    private let format = AVAudioFormat(standardFormatWithSampleRate: AlarmSoundSynthesizer.sampleRate, channels: 1)!
 
     init() {
         engine.attach(player)
-        engine.connect(player, to: engine.mainMixerNode, format: nil)
+        // 再生するバッファと同じ形式でつなぐ。形式が違うと scheduleBuffer で強制終了する。
+        engine.connect(player, to: engine.mainMixerNode, format: format)
     }
 
     func play(_ sound: AlarmSoundChoice) throws {
         player.stop()
         speaker.stopSpeaking(at: .immediate)
         let values = AlarmSoundSynthesizer.phrase(sound)
-        let format = AVAudioFormat(standardFormatWithSampleRate: AlarmSoundSynthesizer.sampleRate, channels: 1)!
         let frameCount = AVAudioFrameCount(values.count)
         guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frameCount),
               let samples = buffer.floatChannelData?[0] else { return }
         buffer.frameLength = frameCount
         for (index, value) in values.enumerated() { samples[index] = value }
 
+        // 試聴はボタンを押したときだけなので、消音スイッチ中でも聞こえるようにする。
+        let session = AVAudioSession.sharedInstance()
+        try session.setCategory(.playback, mode: .default, options: [.duckOthers])
+        try session.setActive(true)
         if !engine.isRunning { try engine.start() }
         player.scheduleBuffer(buffer, at: nil)
         player.play()
