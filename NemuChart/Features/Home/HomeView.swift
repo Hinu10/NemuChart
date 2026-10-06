@@ -7,6 +7,8 @@ struct HomeView: View {
     let settings: UserSettings
     var onSettingsChanged: (UserSettings) -> Void = { _ in }
     var onResetAllData: () -> Void = {}
+    /// 「今回の変更」やアップデートの案内を出している間は、週間目標の画面を自動で出さない。
+    var suppressesAutomaticPrompts = false
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
@@ -196,6 +198,9 @@ struct HomeView: View {
             get: { loadError != nil }, set: { if !$0 { loadError = nil } }
         )) { Button("OK", role: .cancel) {} } message: { Text(loadError ?? "") }
         .onReceive(carouselTimer) { _ in advanceCarousel() }
+        .onChange(of: suppressesAutomaticPrompts) { _, suppressed in
+            if !suppressed { loadDashboard() }
+        }
     }
 
     private func topSummaryCarousel(height: CGFloat) -> some View {
@@ -839,13 +844,13 @@ struct HomeView: View {
                 preferenceData.weeklyGoal = nil
                 proposedWeeklyGoalStart = monday
                 try dependencies.preferences.save(preferenceData)
-                if !weeklyGoalPromptDismissedForSession { showingWeeklyGoal = true }
+                if !weeklyGoalPromptDismissedForSession && !suppressesAutomaticPrompts { showingWeeklyGoal = true }
             }
             return
         }
 
         proposedWeeklyGoalStart = preferenceData.weeklyGoalFirstConfiguredAt == nil ? today : monday
-        if !weeklyGoalPromptDismissedForSession { showingWeeklyGoal = true }
+        if !weeklyGoalPromptDismissedForSession && !suppressesAutomaticPrompts { showingWeeklyGoal = true }
     }
 
     private func durationText(_ interval: TimeInterval) -> String {

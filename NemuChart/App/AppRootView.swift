@@ -6,6 +6,7 @@ struct AppRootView: View {
     @State private var didLoad = false
     @State private var errorMessage: String?
     @State private var storeUpdateURL: URL?
+    @State private var versionComparison: (current: String, latest: String)?
     @State private var showingWhatsNew = false
     @Environment(\.openURL) private var openURL
 
@@ -26,7 +27,8 @@ struct AppRootView: View {
                     dependencies: dependencies,
                     settings: settings,
                     onSettingsChanged: { self.settings = $0 },
-                    onResetAllData: { self.settings = nil }
+                    onResetAllData: { self.settings = nil },
+                    suppressesAutomaticPrompts: showingWhatsNew || storeUpdateURL != nil
                 )
             } else {
                 OnboardingView(repository: dependencies.userSettingsRepository) { saved in
@@ -34,24 +36,12 @@ struct AppRootView: View {
                 }
             }
         }
-        .task { await loadSettings() }
-        .task { await checkVersion() }
+        .task {
+            await loadSettings()
+            await checkVersion()
+        }
         .sheet(isPresented: $showingWhatsNew) {
-            NavigationStack {
-                VStack(alignment: .leading, spacing: 18) {
-                    Text("ねむちゃーとがアップデートされました 🐑")
-                        .font(.title2.bold())
-                    Label("睡眠スコアを新しい配点にしました", systemImage: "chart.bar")
-                    Label("記録と羊の成長を振り返りやすくしました", systemImage: "sparkles")
-                    Label("入力と目標設定を簡単にしました", systemImage: "square.and.pencil")
-                    Spacer()
-                    Button("はじめる") { showingWhatsNew = false }
-                        .buttonStyle(.borderedProminent).frame(maxWidth: .infinity)
-                }
-                .padding()
-                .navigationTitle("今回の変更")
-            }
-            .presentationDetents([.medium])
+            WhatsNewView(version: WhatsNew.current) { showingWhatsNew = false }
         }
         .alert("新しいバージョンがあります", isPresented: Binding(
             get: { storeUpdateURL != nil && !showingWhatsNew },
@@ -63,7 +53,9 @@ struct AppRootView: View {
             }
             Button("あとで", role: .cancel) { storeUpdateURL = nil }
         } message: {
-            Text("新機能や改善を利用するには最新版へのアップデートをおすすめします。")
+            if let versionComparison {
+                Text("お使いのバージョンは \(versionComparison.current)、App Store の最新版は \(versionComparison.latest) です。新機能や改善を利用するにはアップデートをおすすめします。")
+            }
         }
         .alert("読み込みエラー", isPresented: Binding(
             get: { errorMessage != nil },
@@ -81,6 +73,8 @@ struct AppRootView: View {
         async let minimumDisplay: Void = waitForMinimumDisplay(skipsDelay: skipsDelay)
         do {
             settings = try dependencies.userSettingsRepository.load()
+            // ホームが週間目標の画面を出す前に決めておく。
+            prepareWhatsNew()
             _ = await minimumDisplay
             didLoad = true
         } catch {
@@ -95,25 +89,52 @@ struct AppRootView: View {
         try? await Task.sleep(for: .seconds(2))
     }
 
-    private func checkVersion() async {
-        guard ProcessInfo.processInfo.environment["NEMUCHART_UI_TESTING"] != "1",
-              let current = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String else { return }
+    private var currentVersion: String? {
+        guard ProcessInfo.processInfo.environment["NEMUCHART_UI_TESTING"] != "1" else { return nil }
+        return Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String
+    }
+
+    /// アップデート後の初回起動なら「今回の変更」を出す。
+    private func prepareWhatsNew() {
+        guard let current = currentVersion else { return }
         let defaults = UserDefaults.standard
         let key = "NemuChart.lastLaunchedVersion"
-        if let previous = defaults.string(forKey: key), previous != current {
-            showingWhatsNew = true
-        }
+        let previous = defaults.string(forKey: key)
+        // 1.0 には起動したバージョンを残す仕組みがないため、記録がなくても初回設定を終えた人はアップデートした人とみなす。
+        let isUpdate = previous.map { $0 != current } ?? (settings?.hasCompletedOnboarding == true)
+        if isUpdate && current == WhatsNew.current.version { showingWhatsNew = true }
         defaults.set(current, forKey: key)
+    }
+
+    /// App Store の最新版がお使いの版より新しければ、1日1回まで案内する。
+    private func checkVersion() async {
+        guard let current = currentVersion else { return }
+        let defaults = UserDefaults.standard
+        guard let listing = await storeListing(),
+              listing.version.compare(current, options: .numeric) == .orderedDescending,
+              !((defaults.object(forKey: Self.lastUpdatePromptKey) as? Date).map(Calendar.current.isDateInToday) ?? false),
+              let storeURL = URL(string: listing.trackViewUrl) else { return }
+        defaults.set(Date(), forKey: Self.lastUpdatePromptKey)
+        versionComparison = (current, listing.version)
+        storeUpdateURL = storeURL
+    }
+
+    private static let lastUpdatePromptKey = "NemuChart.lastUpdatePromptDate"
+
+    private func storeListing() async -> StoreLookup.Listing? {
+        #if DEBUG
+        // デモや確認用に、App Store に新しい版がある状態を起動引数で再現できるようにする。
+        if let version = UserDefaults.standard.string(forKey: "NemuChartDemoStoreVersion") {
+            return StoreLookup.Listing(version: version, trackViewUrl: "https://apps.apple.com/jp/app/id0")
+        }
+        #endif
         guard let bundle = Bundle.main.bundleIdentifier,
-              var components = URLComponents(string: "https://itunes.apple.com/lookup") else { return }
+              var components = URLComponents(string: "https://itunes.apple.com/lookup") else { return nil }
         components.queryItems = [URLQueryItem(name: "bundleId", value: bundle), URLQueryItem(name: "country", value: "jp")]
         guard let url = components.url,
               let (data, _) = try? await URLSession.shared.data(from: url),
-              let response = try? JSONDecoder().decode(StoreLookup.self, from: data),
-              let listing = response.results.first,
-              listing.version.compare(current, options: .numeric) == .orderedDescending,
-              let storeURL = URL(string: listing.trackViewUrl) else { return }
-        storeUpdateURL = storeURL
+              let response = try? JSONDecoder().decode(StoreLookup.self, from: data) else { return nil }
+        return response.results.first
     }
 }
 
