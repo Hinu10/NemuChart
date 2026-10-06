@@ -16,6 +16,8 @@ struct TonightGoalView: View {
     @State private var alarmSound: AlarmSoundChoice
     @State private var alarmNotice: String?
     @State private var previewService: AlarmSoundPreviewService?
+    @State private var scheduledAlarm: (date: Date, sound: AlarmSoundChoice)?
+    @State private var isScheduling = false
     @AppStorage("NemuChart.alarmEnabled") private var alarmEnabled = false
 
     init(
@@ -33,14 +35,14 @@ struct TonightGoalView: View {
         self.notificationService = notificationService
         self.onSaved = onSaved
         let plan = planningService.plan(settings: settings, records: records)
-        let wake = Self.date(plan.targetWakeTime)
-        let sleep = Self.date(plan.targetSleepTime)
-        let bed = Self.date(plan.targetBedTime)
-        _wakeTime = State(initialValue: wake)
-        _sleepTime = State(initialValue: sleep)
-        _bedTime = State(initialValue: bed)
+        // 今日すでに保存した目標があれば、開き直しても提案値に戻さずその時刻を出す。
+        let saved = (try? repository.goals().first).flatMap { Calendar.current.isDateInToday($0.createdAt) ? $0 : nil }
+        _wakeTime = State(initialValue: Self.date(saved?.targetWakeTime ?? plan.targetWakeTime))
+        _sleepTime = State(initialValue: Self.date(saved?.targetSleepTime ?? plan.targetSleepTime))
+        _bedTime = State(initialValue: Self.date(saved?.targetBedTime ?? plan.targetBedTime))
         _actionGoal = State(initialValue: preferences.load().actionGoal ?? .windDown)
         _alarmSound = State(initialValue: preferences.load().alarmSound)
+        _scheduledAlarm = State(initialValue: NemuAlarmService.upcoming(in: preferences.load()).map { ($0.date, $0.sound) })
         _usedObservedLatency = State(initialValue: plan.usedObservedLatency)
     }
 
@@ -57,7 +59,7 @@ struct TonightGoalView: View {
                 }
                 if #available(iOS 26.0, *) {
                     Section("アラーム") {
-                        Toggle("アラームを設定", isOn: $alarmEnabled)
+                        alarmControls
                         Picker("音", selection: $alarmSound) {
                             ForEach(AlarmSoundChoice.allCases, id: \.self) { Text($0.displayName).tag($0) }
                         }
@@ -75,7 +77,7 @@ struct TonightGoalView: View {
                             Text(alarmNotice)
                                 .font(.footnote).foregroundStyle(.orange)
                         }
-                        Text("アラームの『起きた！』で、押した時刻を記録画面に入力できます。スヌーズは\(NemuAlarmService.snoozeMinutes)分です。")
+                        Text("時刻や音を変えても、セットし直すまでアラームは変わりません。『起きた！』で押した時刻を記録画面に入力できます。スヌーズは\(NemuAlarmService.snoozeMinutes)分です。")
                             .font(.footnote).foregroundStyle(.secondary)
                         Text("音量や集中モードなど端末の設定によって、聞こえ方や表示が変わることがあります。音の好みや起きやすさには個人差があり、特定の音の効果を保証するものではありません。")
                             .font(.footnote).foregroundStyle(.secondary)
@@ -99,12 +101,9 @@ struct TonightGoalView: View {
             .onChange(of: wakeTime) { _, _ in save() }
             .onChange(of: actionGoal) { _, _ in save() }
             .onChange(of: alarmSound) { _, _ in save() }
-            .onChange(of: alarmEnabled) { _, enabled in
-                if enabled { scheduleAlarm() } else { NemuAlarmService.cancel(preferences: preferences) }
-            }
             .onAppear {
-                if alarmEnabled && NemuAlarmService.isAuthorizationDenied {
-                    alarmEnabled = false
+                if scheduledAlarm != nil && NemuAlarmService.isAuthorizationDenied {
+                    cancelAlarm()
                     alarmNotice = NemuAlarmError.notAuthorized.errorDescription
                 }
             }
@@ -135,23 +134,65 @@ struct TonightGoalView: View {
             if settings.notificationPreference.isEnabledInApp {
                 Task { try? await notificationService?.scheduleWindDown(before: bed) }
             }
-            if alarmEnabled { scheduleAlarm() }
         } catch { errorMessage = error.localizedDescription }
+    }
+
+    @ViewBuilder
+    private var alarmControls: some View {
+        let time = wakeTime.formatted(date: .omitted, time: .shortened)
+        if let scheduledAlarm {
+            LabeledContent("セット中") {
+                Text("\(Self.dayLabel(scheduledAlarm.date)) \(scheduledAlarm.date.formatted(date: .omitted, time: .shortened))")
+            }
+            if localTime(scheduledAlarm.date) != localTime(wakeTime) || scheduledAlarm.sound != alarmSound {
+                Button {
+                    scheduleAlarm()
+                } label: {
+                    Label("\(time)・\(alarmSound.displayName)でセットし直す", systemImage: "arrow.clockwise")
+                }
+                .disabled(isScheduling)
+            }
+            Button("アラームを取り消す", role: .destructive) { cancelAlarm() }
+                .disabled(isScheduling)
+        } else {
+            Button {
+                scheduleAlarm()
+            } label: {
+                Label("\(time)にアラームをセット", systemImage: "alarm")
+            }
+            .disabled(isScheduling)
+        }
+        if isScheduling {
+            ProgressView("セットしています…")
+        }
     }
 
     private func scheduleAlarm() {
         guard #available(iOS 26.0, *) else { return }
         let time = localTime(wakeTime)
         let sound = alarmSound
+        isScheduling = true
         Task {
+            defer { isScheduling = false }
             do {
                 let result = try await NemuAlarmService.schedule(wakeTime: time, sound: sound, preferences: preferences)
+                scheduledAlarm = (result.scheduledAt, result.sound)
+                alarmEnabled = true
                 alarmNotice = result.sound == sound ? nil : String(localized: "選んだ音を用意できなかったため、標準のアラーム音で設定しました。")
             } catch {
-                alarmEnabled = false
                 alarmNotice = error.localizedDescription
             }
         }
+    }
+
+    private func cancelAlarm() {
+        NemuAlarmService.cancel(preferences: preferences)
+        scheduledAlarm = nil
+        alarmEnabled = false
+    }
+
+    private static func dayLabel(_ date: Date) -> String {
+        Calendar.current.isDateInToday(date) ? String(localized: "今日") : String(localized: "明日")
     }
 
     private func preview() {

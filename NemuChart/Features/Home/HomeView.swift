@@ -20,6 +20,8 @@ struct HomeView: View {
     @State private var weeklyGoalPromptDismissedForSession = false
     @State private var showingSettings = false
     @State private var showingCollection = false
+    @State private var showingTonightGoal = false
+    @AppStorage("NemuChart.alarmEnabled") private var alarmEnabled = false
     @State private var records: [SleepRecord] = []
     @State private var scores: [DailySleepScore] = []
     @State private var weeklyMetrics: WeeklyMetrics?
@@ -58,6 +60,7 @@ struct HomeView: View {
                     topSummaryCarousel(height: isShortPortrait ? 130 : isMediumPortrait ? 158 : 176)
                     landscapeCard(viewportSize: rootProxy.size)
                     if let safetyGuidance { safetyCard(safetyGuidance) }
+                    if let upcomingAlarm { alarmRow(upcomingAlarm) }
                     Button {
                         showingRecordDayChoices = true
                     } label: {
@@ -150,6 +153,19 @@ struct HomeView: View {
                 progressService: dependencies.weeklyGoalProgressService,
                 settings: settings,
                 proposedWeekStart: proposedWeeklyGoalStart
+            )
+        }
+        .sheet(isPresented: $showingTonightGoal, onDismiss: {
+            now = Date()
+            loadDashboard()
+        }) {
+            TonightGoalView(
+                settings: settings,
+                records: records,
+                repository: dependencies.sleepGoalRepository,
+                preferences: dependencies.preferences,
+                planningService: dependencies.goalPlanningService,
+                notificationService: dependencies.notificationService
             )
         }
         .sheet(isPresented: $showingSettings, onDismiss: loadDashboard) {
@@ -311,6 +327,43 @@ struct HomeView: View {
         .overlay(HomeLandscapeLayout.cardShape.stroke(.white.opacity(0.42), lineWidth: 1))
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("homeLandscapeCard")
+    }
+
+    private var upcomingAlarm: (date: Date, sound: AlarmSoundChoice, isSnoozed: Bool)? {
+        alarmEnabled ? NemuAlarmService.upcoming(in: preferenceData, now: now) : nil
+    }
+
+    private func alarmRow(_ alarm: (date: Date, sound: AlarmSoundChoice, isSnoozed: Bool)) -> some View {
+        let day = Calendar.current.isDateInToday(alarm.date) ? String(localized: "今日") : String(localized: "明日")
+        let time = alarm.date.formatted(date: .omitted, time: .shortened)
+        return Button {
+            showingTonightGoal = true
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: alarm.isSnoozed ? "zzz" : "alarm.fill")
+                    .font(.title3)
+                    .foregroundStyle(.indigo)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(alarm.isSnoozed ? "スヌーズ中・\(time)にもう一度鳴ります" : "アラーム \(day) \(time)")
+                        .font(.system(.headline, design: .rounded))
+                    Text(alarm.sound.displayName)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.tertiary)
+                    .accessibilityHidden(true)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .accessibilityHint("今夜の目標とアラームを開きます")
     }
 
     private var greetingHeader: some View {

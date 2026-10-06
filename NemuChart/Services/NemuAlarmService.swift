@@ -41,8 +41,7 @@ struct NemuSnoozeIntent: LiveActivityIntent {
 
     func perform() async throws -> some IntentResult {
         guard let id = UUID(uuidString: alarmID) else { return .result() }
-        try AlarmManager.shared.countdown(id: id)
-        await NemuAlarmService.recordSnooze(id: id)
+        try await NemuAlarmService.snooze(id: id)
         return .result()
     }
 }
@@ -61,7 +60,24 @@ enum NemuAlarmError: LocalizedError {
 @MainActor
 enum NemuAlarmService {
     private static let idKey = "NemuChart.alarmID"
-    static let snoozeMinutes = 9
+    /// スヌーズで予約し直しても、結果は最初の予約にまとめて記録する。
+    private static let resultIDKey = "NemuChart.alarmResultID"
+    private static let snoozeUntilKey = "NemuChart.alarmSnoozeUntil"
+    static let snoozeMinutes = 10
+
+    /// セット済みで、まだ止めていないアラーム。スヌーズ中は次に鳴る時刻を返す。
+    static func upcoming(in data: AppPreferenceData, now: Date = Date()) -> (date: Date, sound: AlarmSoundChoice, isSnoozed: Bool)? {
+        guard UserDefaults.standard.bool(forKey: "NemuChart.alarmEnabled") else { return nil }
+        let pending = data.alarmResults.filter { $0.stoppedAt == nil }
+        if let snoozedUntil = (UserDefaults.standard.object(forKey: snoozeUntilKey) as? Date), snoozedUntil > now,
+           let latest = pending.max(by: { $0.scheduledAt < $1.scheduledAt }) {
+            return (snoozedUntil, latest.sound, true)
+        }
+        return pending
+            .filter { $0.scheduledAt > now }
+            .min { $0.scheduledAt < $1.scheduledAt }
+            .map { ($0.scheduledAt, $0.sound, false) }
+    }
 
     /// 予約したアラームと実際に鳴らす音を返す。音源を用意できなければ標準音で予約する。
     @available(iOS 26.0, *)
@@ -83,22 +99,12 @@ enum NemuAlarmService {
         let now = Date()
         let next = calendar.nextDate(after: now, matching: DateComponents(hour: wakeTime.hour, minute: wakeTime.minute), matchingPolicy: .nextTime)!
         let id = UUID()
-        let stop = AlarmButton(text: "起きた！", textColor: .white, systemImageName: "sun.max.fill")
-        let snooze = AlarmButton(text: "スヌーズ", textColor: .white, systemImageName: "zzz")
-        let alert = AlarmPresentation.Alert(title: "ねむちゃーと", stopButton: stop,
-                                            secondaryButton: snooze, secondaryButtonBehavior: .countdown)
-        let presentation = AlarmPresentation(alert: alert)
-        let attributes = AlarmAttributes<NemuAlarmMetadata>(presentation: presentation, tintColor: .indigo)
         let (alertSound, usedSound) = await alertSound(for: sound)
-        let config = AlarmManager.AlarmConfiguration(
-            countdownDuration: .init(preAlert: nil, postAlert: TimeInterval(snoozeMinutes * 60)),
-            schedule: .fixed(next), attributes: attributes,
-            stopIntent: NemuWakeIntent(alarmID: id),
-            secondaryIntent: NemuSnoozeIntent(alarmID: id),
-            sound: alertSound
-        )
+        let config = configuration(id: id, at: next, sound: alertSound)
         _ = try await manager.schedule(id: id, configuration: config)
         UserDefaults.standard.set(id.uuidString, forKey: idKey)
+        UserDefaults.standard.set(id.uuidString, forKey: resultIDKey)
+        UserDefaults.standard.removeObject(forKey: snoozeUntilKey)
         let result = AlarmResult(id: id, scheduledAt: next, sound: usedSound, deliveryMode: .alarmKit)
         update(preferences) { AlarmResultLog.scheduled(result, in: $0) }
         return result
@@ -108,8 +114,59 @@ enum NemuAlarmService {
         guard #available(iOS 26.0, *),
               let id = UserDefaults.standard.string(forKey: idKey).flatMap(UUID.init(uuidString:)) else { return }
         try? AlarmManager.shared.cancel(id: id)
+        let resultID = self.resultID(for: id)
         UserDefaults.standard.removeObject(forKey: idKey)
-        update(preferences ?? AppPreferencesStore()) { AlarmResultLog.cancelled(id: id, now: Date(), in: $0) }
+        UserDefaults.standard.removeObject(forKey: snoozeUntilKey)
+        update(preferences ?? AppPreferencesStore()) { AlarmResultLog.cancelled(id: resultID, now: Date(), in: $0) }
+    }
+
+    /// AlarmKit の組み込みカウントダウンは Live Activity のウィジェットがないと動かないため、
+    /// 鳴っているアラームを止めて、同じ音で snoozeMinutes 分後に予約し直す。
+    @available(iOS 26.0, *)
+    static func snooze(id: UUID) async throws {
+        let manager = AlarmManager.shared
+        try? manager.stop(id: id)
+        try? manager.cancel(id: id)
+        let resultID = resultID(for: id)
+        let data = AppPreferencesStore().load()
+        let sound = data.alarmResults.first { $0.id == resultID }?.sound ?? data.alarmSound
+        let (alertSound, _) = await alertSound(for: sound)
+        let date = Date().addingTimeInterval(TimeInterval(snoozeMinutes * 60))
+        var nextID = id
+        do {
+            _ = try await manager.schedule(id: nextID, configuration: configuration(id: nextID, at: date, sound: alertSound))
+        } catch {
+            // 同じIDで予約し直せない場合は新しいIDで予約する。
+            nextID = UUID()
+            _ = try await manager.schedule(id: nextID, configuration: configuration(id: nextID, at: date, sound: alertSound))
+        }
+        UserDefaults.standard.set(nextID.uuidString, forKey: idKey)
+        UserDefaults.standard.set(resultID.uuidString, forKey: resultIDKey)
+        UserDefaults.standard.set(date, forKey: snoozeUntilKey)
+        update(AppPreferencesStore()) { AlarmResultLog.snoozed(id: resultID, in: $0) }
+    }
+
+    @available(iOS 26.0, *)
+    private static func configuration(
+        id: UUID,
+        at date: Date,
+        sound: AlertConfiguration.AlertSound
+    ) -> AlarmManager.AlarmConfiguration<NemuAlarmMetadata> {
+        let stop = AlarmButton(text: "起きた！", textColor: .white, systemImageName: "sun.max.fill")
+        let snooze = AlarmButton(text: "スヌーズ", textColor: .white, systemImageName: "zzz")
+        let alert = AlarmPresentation.Alert(title: "ねむちゃーと", stopButton: stop,
+                                            secondaryButton: snooze, secondaryButtonBehavior: .custom)
+        let attributes = AlarmAttributes<NemuAlarmMetadata>(presentation: AlarmPresentation(alert: alert), tintColor: .indigo)
+        return AlarmManager.AlarmConfiguration(
+            schedule: .fixed(date), attributes: attributes,
+            stopIntent: NemuWakeIntent(alarmID: id),
+            secondaryIntent: NemuSnoozeIntent(alarmID: id),
+            sound: sound
+        )
+    }
+
+    private static func resultID(for alarmID: UUID) -> UUID {
+        UserDefaults.standard.string(forKey: resultIDKey).flatMap(UUID.init(uuidString:)) ?? alarmID
     }
 
     static var isAuthorizationDenied: Bool {
@@ -118,11 +175,9 @@ enum NemuAlarmService {
     }
 
     static func recordStop(id: UUID, at date: Date) {
-        update(AppPreferencesStore()) { AlarmResultLog.stopped(id: id, at: date, in: $0) }
-    }
-
-    static func recordSnooze(id: UUID) {
-        update(AppPreferencesStore()) { AlarmResultLog.snoozed(id: id, in: $0) }
+        UserDefaults.standard.removeObject(forKey: snoozeUntilKey)
+        let resultID = resultID(for: id)
+        update(AppPreferencesStore()) { AlarmResultLog.stopped(id: resultID, at: date, in: $0) }
     }
 
     private static func update(_ preferences: AppPreferencesStore, _ transform: ([AlarmResult]) -> [AlarmResult]) {
@@ -155,5 +210,5 @@ enum NemuAlarmService {
     }
 
     /// 音の作り方を変えたら上げる。古いファイルを使い回さないため。
-    private static let soundFileVersion = 2
+    private static let soundFileVersion = 3
 }
