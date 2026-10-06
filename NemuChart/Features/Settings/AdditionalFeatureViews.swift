@@ -1,39 +1,7 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-struct FutureFeaturesView: View {
-    let dependencies: AppDependencies
-
-    var body: some View {
-        List {
-            Section("分析") {
-                NavigationLink("生活要因の傾向") {
-                    LifestyleInsightsView(dependencies: dependencies)
-                }
-                NavigationLink("1か月分析") {
-                    LongTermReportsView(dependencies: dependencies)
-                }
-                if #available(iOS 26.0, *) {
-                    NavigationLink("アラーム音ごとの結果") {
-                        AlarmResultsView(preferences: dependencies.preferences)
-                    }
-                }
-            }
-            Section("データ") {
-                NavigationLink("CSV / JSONを書き出す") {
-                    DataExportView(dependencies: dependencies)
-                }
-            }
-            Section {
-                Text("表示する分析は自己入力から計算した参考情報です。測定、診断、因果関係の判定ではありません。")
-                    .font(.footnote).foregroundStyle(.secondary)
-            }
-        }
-        .navigationTitle("追加機能")
-    }
-}
-
-private struct LifestyleInsightsView: View {
+struct LifestyleInsightsView: View {
     let dependencies: AppDependencies
     @State private var results: [FactorAssociationResult] = []
     @State private var recordCount = 0
@@ -86,7 +54,7 @@ private struct LifestyleInsightsView: View {
     }
 }
 
-private struct LongTermReportsView: View {
+struct LongTermReportsView: View {
     let dependencies: AppDependencies
     @State private var days = 30
     @State private var report: LongTermReport?
@@ -141,7 +109,7 @@ private struct LongTermReportsView: View {
     }
 }
 
-private struct AlarmResultsView: View {
+struct AlarmResultsView: View {
     let preferences: AppPreferencesStore
     @State private var summaries: [AlarmSoundSummary] = []
     @State private var recent: [AlarmResult] = []
@@ -210,7 +178,7 @@ private struct JSONExport: Transferable {
     }
 }
 
-private struct DataExportView: View {
+struct DataExportView: View {
     let dependencies: AppDependencies
     @State private var csv = Data()
     @State private var json = Data()

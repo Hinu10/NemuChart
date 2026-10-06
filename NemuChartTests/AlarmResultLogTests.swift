@@ -59,4 +59,32 @@ final class AlarmResultLogTests: XCTestCase {
         XCTAssertEqual(String(decoding: data[8..<12], as: UTF8.self), "WAVE")
         XCTAssertEqual(data.count, 44 + Int(AlarmSoundSynthesizer.sampleRate) * 2)
     }
+
+    func testEverySoundHasAudiblePhrase() {
+        for sound in AlarmSoundChoice.allCases {
+            let phrase = AlarmSoundSynthesizer.phrase(sound)
+            XCTAssertEqual(phrase.count, Int(AlarmSoundSynthesizer.sampleRate * AlarmSoundSynthesizer.phraseDuration(sound)))
+            XCTAssertGreaterThan(phrase.map(abs).max() ?? 0, 0.05, "\(sound)")
+            XCTAssertLessThanOrEqual(phrase.map(abs).max() ?? 0, 0.25, "\(sound)")
+        }
+    }
+
+    func testVoiceSoundsHaveSpeechAndOthersDoNot() {
+        XCTAssertEqual(AlarmSoundChoice.voiceMorning.speechText, "朝です。起きなさい！")
+        XCTAssertNotNil(AlarmSoundChoice.voiceCountdown.speechText)
+        XCTAssertNil(AlarmSoundChoice.siren.speechText)
+    }
+
+    func testResampleConvertsRate() {
+        let source = [Float](repeating: 0.5, count: 22_050)
+        let resampled = AlarmSoundSynthesizer.resample(source, from: 22_050)
+        XCTAssertEqual(resampled.count, 44_100)
+        XCTAssertEqual(resampled[1_000], 0.5, accuracy: 0.0001)
+    }
+
+    func testAlarmWAVIncludesSpeechSamples() {
+        let speech = [Float](repeating: 0.1, count: 1_000)
+        let data = AlarmSoundSynthesizer.alarmWAV(.voiceMorning, speech: speech, totalDuration: 1)
+        XCTAssertEqual(data.count, 44 + Int(AlarmSoundSynthesizer.sampleRate) * 2)
+    }
 }

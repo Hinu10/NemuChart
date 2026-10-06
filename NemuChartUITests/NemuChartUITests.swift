@@ -74,14 +74,14 @@ final class NemuChartUITests: XCTestCase {
         app.navigationBars["今夜の目標"].buttons["閉じる"].tap()
         XCTAssertTrue(app.navigationBars["設定"].waitForExistence(timeout: 3))
 
-        XCTAssertTrue(scrollToElement(app.buttons["additionalFeaturesLink"], in: app))
-        XCTAssertTrue(app.staticTexts["mvpFutureFeaturesDescription"].exists)
-        app.buttons["additionalFeaturesLink"].tap()
-        XCTAssertTrue(app.navigationBars["追加機能"].waitForExistence(timeout: 3))
-        XCTAssertTrue(app.buttons["1か月分析"].waitForExistence(timeout: 3))
-        XCTAssertTrue(app.buttons["CSV / JSONを書き出す"].exists)
+        XCTAssertTrue(scrollToElement(app.staticTexts["mvpFutureFeaturesDescription"], in: app))
+        XCTAssertTrue(app.buttons["lifestyleInsightsLink"].exists)
+        XCTAssertTrue(app.buttons["dataExportLink"].exists)
         XCTAssertFalse(app.buttons["購入する"].exists)
-        app.navigationBars["追加機能"].buttons.firstMatch.tap()
+        app.buttons["longTermReportLink"].tap()
+        XCTAssertTrue(app.navigationBars["長期レポート"].waitForExistence(timeout: 3))
+        app.navigationBars["長期レポート"].buttons.firstMatch.tap()
+        XCTAssertTrue(app.navigationBars["設定"].waitForExistence(timeout: 3))
 
         XCTAssertTrue(scrollToElement(app.staticTexts["medicalDisclaimerPrimary"], in: app))
         XCTAssertTrue(scrollToElement(app.staticTexts["medicalDisclaimerSecondary"], in: app))
@@ -183,7 +183,7 @@ final class NemuChartUITests: XCTestCase {
         app.navigationBars["7日間の振り返り"].buttons.firstMatch.tap()
 
         openSettings(in: app)
-        XCTAssertTrue(scrollToElement(app.buttons["additionalFeaturesLink"], in: app))
+        XCTAssertTrue(scrollToElement(app.buttons["lifestyleInsightsLink"], in: app))
         XCTAssertTrue(scrollToElement(app.staticTexts["medicalDisclaimerPrimary"], in: app))
         app.navigationBars["設定"].buttons.firstMatch.tap()
 

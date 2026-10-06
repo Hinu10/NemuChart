@@ -104,12 +104,31 @@ struct SettingsView: View {
                     }
                     .accessibilityIdentifier("tonightGoalAndAlarmButton")
                     NavigationLink {
-                        FutureFeaturesView(dependencies: dependencies)
+                        LifestyleInsightsView(dependencies: dependencies)
                     } label: {
-                        Label("追加機能", systemImage: "sparkles")
+                        Label("生活要因の傾向", systemImage: "chart.bar.xaxis")
                     }
-                    .accessibilityIdentifier("additionalFeaturesLink")
-                    Text("今夜の目標とアラーム、長期分析、生活要因の比較、データ書き出しを利用できます。")
+                    .accessibilityIdentifier("lifestyleInsightsLink")
+                    NavigationLink {
+                        LongTermReportsView(dependencies: dependencies)
+                    } label: {
+                        Label("1か月分析", systemImage: "calendar")
+                    }
+                    .accessibilityIdentifier("longTermReportLink")
+                    if #available(iOS 26.0, *) {
+                        NavigationLink {
+                            AlarmResultsView(preferences: dependencies.preferences)
+                        } label: {
+                            Label("アラーム音ごとの結果", systemImage: "alarm.waves.left.and.right")
+                        }
+                    }
+                    NavigationLink {
+                        DataExportView(dependencies: dependencies)
+                    } label: {
+                        Label("CSV / JSONを書き出す", systemImage: "square.and.arrow.up")
+                    }
+                    .accessibilityIdentifier("dataExportLink")
+                    Text("表示する分析は自己入力から計算した参考情報です。測定、診断、因果関係の判定ではありません。")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                         .accessibilityIdentifier("mvpFutureFeaturesDescription")

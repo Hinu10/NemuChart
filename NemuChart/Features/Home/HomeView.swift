@@ -294,7 +294,7 @@ struct HomeView: View {
                 backgroundID: automaticBackground?.id,
                 effectID: automaticEffect?.id,
                 accessoryIDs: unlockedSceneDecorations,
-                animate: !reduceMotion,
+                animate: !reduceMotion && ProcessInfo.processInfo.environment["NEMUCHART_UI_TESTING"] != "1",
                 fadeIntoStatus: true,
                 nightMode: period == .night
             )

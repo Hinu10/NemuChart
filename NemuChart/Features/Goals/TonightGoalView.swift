@@ -67,6 +67,10 @@ struct TonightGoalView: View {
                             Label("音を試聴", systemImage: "speaker.wave.2")
                         }
                         .accessibilityHint("選んだアラーム音を一度だけ鳴らします")
+                        if alarmSound.speechText != nil {
+                            Text("声の音は、この iPhone の読み上げ音声で作ります。初回の予約に少し時間がかかることがあります。")
+                                .font(.footnote).foregroundStyle(.secondary)
+                        }
                         if let alarmNotice {
                             Text(alarmNotice)
                                 .font(.footnote).foregroundStyle(.orange)

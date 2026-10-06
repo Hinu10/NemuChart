@@ -4,12 +4,31 @@ enum AlarmSoundChoice: String, Codable, CaseIterable, Sendable {
     case system
     case gentleChime
     case birds
+    case siren
+    case klaxon
+    case bell
+    case voiceMorning
+    case voiceCountdown
 
     var displayName: String {
         switch self {
         case .system: String(localized: "システム標準")
         case .gentleChime: String(localized: "やさしいチャイム")
         case .birds: String(localized: "小鳥")
+        case .siren: String(localized: "緊急サイレン")
+        case .klaxon: String(localized: "潜水艦の警報")
+        case .bell: String(localized: "ジリリ目覚まし")
+        case .voiceMorning: String(localized: "声「朝です。起きなさい！」")
+        case .voiceCountdown: String(localized: "声「起床カウントダウン」")
+        }
+    }
+
+    /// 端末の読み上げ音声で作る台詞。nil は合成音だけの音源。
+    var speechText: String? {
+        switch self {
+        case .voiceMorning: String(localized: "朝です。起きなさい！")
+        case .voiceCountdown: String(localized: "起床まで、3、2、1。起きろー！")
+        default: nil
         }
     }
 }

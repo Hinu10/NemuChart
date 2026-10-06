@@ -89,7 +89,7 @@ enum NemuAlarmService {
                                             secondaryButton: snooze, secondaryButtonBehavior: .countdown)
         let presentation = AlarmPresentation(alert: alert)
         let attributes = AlarmAttributes<NemuAlarmMetadata>(presentation: presentation, tintColor: .indigo)
-        let (alertSound, usedSound) = alertSound(for: sound)
+        let (alertSound, usedSound) = await alertSound(for: sound)
         let config = AlarmManager.AlarmConfiguration(
             countdownDuration: .init(preAlert: nil, postAlert: TimeInterval(snoozeMinutes * 60)),
             schedule: .fixed(next), attributes: attributes,
@@ -132,21 +132,28 @@ enum NemuAlarmService {
     }
 
     @available(iOS 26.0, *)
-    private static func alertSound(for sound: AlarmSoundChoice) -> (AlertConfiguration.AlertSound, AlarmSoundChoice) {
+    private static func alertSound(for sound: AlarmSoundChoice) async -> (AlertConfiguration.AlertSound, AlarmSoundChoice) {
         guard sound != .system else { return (.default, .system) }
         do {
             let directory = try FileManager.default
                 .url(for: .libraryDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
                 .appendingPathComponent("Sounds", isDirectory: true)
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-            let name = "nemuchart-\(sound.rawValue).wav"
+            let name = "nemuchart-\(sound.rawValue)-v\(soundFileVersion).wav"
             let url = directory.appendingPathComponent(name)
             if !FileManager.default.fileExists(atPath: url.path) {
-                try AlarmSoundSynthesizer.alarmWAV(sound).write(to: url, options: .atomic)
+                var speech: [Float] = []
+                if let text = sound.speechText {
+                    speech = try await AlarmSpeechRenderer().render(text)
+                }
+                try AlarmSoundSynthesizer.alarmWAV(sound, speech: speech).write(to: url, options: .atomic)
             }
             return (.named(name), sound)
         } catch {
             return (.default, .system)
         }
     }
+
+    /// 音の作り方を変えたら上げる。古いファイルを使い回さないため。
+    private static let soundFileVersion = 2
 }
