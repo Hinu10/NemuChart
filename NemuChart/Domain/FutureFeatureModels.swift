@@ -3,10 +3,12 @@ import Foundation
 enum AlarmSoundChoice: String, Codable, CaseIterable, Sendable {
     case system
     case gentleChime
+    case melodyGentle
     case birds
     case siren
     case klaxon
     case bell
+    case melodyLoud
     case voiceMorning
     case voiceCountdown
 
@@ -14,10 +16,12 @@ enum AlarmSoundChoice: String, Codable, CaseIterable, Sendable {
         switch self {
         case .system: String(localized: "システム標準")
         case .gentleChime: String(localized: "やさしいチャイム")
+        case .melodyGentle: String(localized: "やさしいメロディー")
         case .birds: String(localized: "小鳥")
         case .siren: String(localized: "緊急サイレン")
         case .klaxon: String(localized: "潜水艦の警報")
         case .bell: String(localized: "ジリリ目覚まし")
+        case .melodyLoud: String(localized: "にぎやかメロディー")
         case .voiceMorning: String(localized: "声「朝です。起きなさい！」")
         case .voiceCountdown: String(localized: "声「起床カウントダウン」")
         }

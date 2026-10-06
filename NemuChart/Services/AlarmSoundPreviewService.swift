@@ -11,11 +11,37 @@ enum AlarmSoundSynthesizer {
         case .bell: 1.6
         case .voiceMorning, .voiceCountdown: 0.5
         case .system, .gentleChime: 1.0
+        case .melodyGentle: gentleMelody.duration
+        case .melodyLoud: loudMelody.duration
         }
     }
 
+    /// メロディー音源の譜面。note は MIDI ノート番号（72 = 高いド）、nil は休符。beats は拍数。
+    struct Melody {
+        let notes: [(note: Int?, beats: Double)]
+        let secondsPerBeat: Double
+        var duration: Double { notes.reduce(0) { $0 + $1.beats } * secondsPerBeat }
+    }
+
+    /// ミ・ソ・ドと上がって、ゆっくりドに戻る朝のメロディー。
+    static let gentleMelody = Melody(notes: [
+        (76, 1), (79, 1), (84, 2), (83, 1), (79, 1), (81, 2),
+        (79, 1), (76, 1), (77, 1), (74, 1), (72, 4),
+    ], secondsPerBeat: 0.28)
+
+    /// 起床ラッパ風に駆け上がる速いファンファーレ。
+    static let loudMelody = Melody(notes: [
+        (67, 1), (72, 1), (76, 1), (79, 2), (76, 1), (79, 4), (nil, 1),
+        (67, 1), (72, 1), (76, 1), (79, 2), (76, 1), (84, 4), (nil, 2),
+    ], secondsPerBeat: 0.12)
+
     /// 1フレーズ分の波形。試聴とアラーム用音源で同じ音を使う。声の音源では台詞の前に鳴らす合図音になる。
     static func phrase(_ sound: AlarmSoundChoice) -> [Float] {
+        switch sound {
+        case .melodyGentle: return render(gentleMelody, loud: false)
+        case .melodyLoud: return render(loudMelody, loud: true)
+        default: break
+        }
         let duration = phraseDuration(sound)
         let frameCount = Int(sampleRate * duration)
         var phase = 0.0
@@ -53,15 +79,54 @@ enum AlarmSoundSynthesizer {
                 // 台詞の前の「ピピッ」。
                 let beep = (time < 0.12 || (time > 0.2 && time < 0.32)) ? 1.0 : 0
                 value = sin(2 * .pi * 1_760 * time) * beep * 0.2
+            case .melodyGentle, .melodyLoud:
+                value = 0 // 上の render で作って返している。
             }
             return Float(value)
         }
     }
 
+    /// 譜面を波形にする。やさしい音はオルゴールのように余韻を次の音へ重ね、うるさい音は倍音の多い音を短く切って弾ませる。
+    private static func render(_ melody: Melody, loud: Bool) -> [Float] {
+        var samples = [Float](repeating: 0, count: Int(sampleRate * melody.duration))
+        var start = 0.0
+        for (note, beats) in melody.notes {
+            let length = beats * melody.secondsPerBeat
+            defer { start += length }
+            guard let note else { continue }
+            let frequency = 440 * pow(2, Double(note - 69) / 12)
+            let ring = loud ? length * 0.85 : 1.2
+            let first = Int(start * sampleRate)
+            let end = min(samples.count, first + Int(ring * sampleRate))
+            for frame in first..<end {
+                let time = Double(frame - first) / sampleRate
+                let phase = 2 * .pi * frequency * time
+                let value: Double
+                if loud {
+                    let envelope = min(1, time / 0.005) * min(1, (ring - time) / 0.01)
+                    value = (sin(phase) + 0.5 * sin(2 * phase) + sin(3 * phase) / 3 + sin(5 * phase) / 5 + sin(7 * phase) / 7) * envelope
+                } else {
+                    let envelope = min(1, time / 0.005) * exp(-time * 3.5)
+                    value = (sin(phase) + 0.3 * sin(2 * phase) + 0.08 * sin(4 * phase)) * envelope
+                }
+                samples[frame] += Float(value)
+            }
+        }
+        // ほかの音とそろえる。うるさい音はWAV書き出し時の4倍でほぼ最大音量になる。
+        let peak = max(samples.map(abs).max() ?? 1, 0.001)
+        let target: Float = loud ? 0.25 : 0.16
+        return samples.map { $0 / peak * target }
+    }
+
     /// アラーム用に、フレーズ（声の音源では合図音＋台詞）と無音を繰り返した16bit PCMのWAVを作る。
     static func alarmWAV(_ sound: AlarmSoundChoice, speech: [Float] = [], totalDuration: Double = 25) -> Data {
         let phrase = phrase(sound) + speech
-        let gap = [Float](repeating: 0, count: Int(sampleRate * (sound == .siren ? 0.1 : 0.6)))
+        let gapDuration = switch sound {
+        case .siren, .melodyLoud: 0.1
+        case .melodyGentle: 1.0
+        default: 0.6
+        }
+        let gap = [Float](repeating: 0, count: Int(sampleRate * gapDuration))
         var samples: [Float] = []
         let target = Int(sampleRate * totalDuration)
         while samples.count < target { samples += phrase + gap }
