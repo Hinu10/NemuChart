@@ -19,7 +19,7 @@ struct SheepSceneArtwork: View {
         }
         switch backgroundID {
         case "morning": return [Color(red: 0.61, green: 0.80, blue: 0.96), Color(red: 1, green: 0.88, blue: 0.70)]
-        case "stars": return [Color(red: 0.11, green: 0.22, blue: 0.48), Color(red: 0.43, green: 0.49, blue: 0.73)]
+        case "stars": return [Color(red: 0.05, green: 0.08, blue: 0.27), Color(red: 0.27, green: 0.27, blue: 0.58)]
         case "sunset": return [Color(red: 0.48, green: 0.55, blue: 0.84), Color(red: 1, green: 0.72, blue: 0.62)]
         case "garden": return [Color(red: 0.57, green: 0.79, blue: 0.91), Color(red: 0.94, green: 0.91, blue: 0.73)]
         default: return [Color(red: 0.62, green: 0.80, blue: 0.96), Color(red: 0.86, green: 0.91, blue: 0.98)]
@@ -45,23 +45,19 @@ struct SheepSceneArtwork: View {
                         .position(x: width * 0.77, y: height * 0.45)
                 }
 
-                if isNight {
-                    Circle()
-                        .fill(Color.white.opacity(0.3))
-                        .frame(width: height * 0.34)
-                        .blur(radius: 18)
-                        .position(x: width * 0.78, y: height * 0.23)
-                    Circle()
-                        .fill(Color(red: 1, green: 0.98, blue: 0.84))
-                        .frame(width: height * 0.15)
-                        .position(x: width * 0.78, y: height * 0.23)
-                    ForEach(0..<17, id: \.self) { index in
+                if backgroundID == "stars" {
+                    starrySky(width: width, height: height)
+                } else if isNight {
+                    // 解放前の夜は細い月と少しの星だけにして、「星空の丘」との違いが分かるようにする。
+                    crescentMoon(size: height * 0.13)
+                        .position(x: width * 0.80, y: height * 0.22)
+                    ForEach(0..<6, id: \.self) { index in
                         Circle()
-                            .fill(.white.opacity(index.isMultiple(of: 3) ? 0.9 : 0.55))
-                            .frame(width: index.isMultiple(of: 4) ? 3 : 2)
+                            .fill(.white.opacity(0.6))
+                            .frame(width: 2)
                             .position(
-                                x: width * (0.07 + CGFloat((index * 37) % 86) / 100),
-                                y: height * (0.07 + CGFloat((index * 23) % 48) / 100)
+                                x: width * (0.08 + CGFloat((index * 37) % 70) / 100),
+                                y: height * (0.08 + CGFloat((index * 23) % 40) / 100)
                             )
                     }
                 } else {
@@ -71,15 +67,30 @@ struct SheepSceneArtwork: View {
                         .position(x: width * 0.84, y: height * 0.32)
                 }
 
+                if backgroundID == "garden" {
+                    rainbow(radius: height * 0.62)
+                        .position(x: width * 0.30, y: height * 0.80)
+                }
+
                 // Overlapping hills make each palette feel like the same landscape.
                 Ellipse()
                     .fill(hillColor(back: true))
                     .frame(width: width * 1.22, height: height * 0.62)
                     .position(x: width * 0.87, y: height * 0.92)
+                if backgroundID == "garden" {
+                    cottage(size: height * 0.22)
+                        .position(x: width * 0.86, y: height * 0.54)
+                }
                 Ellipse()
                     .fill(hillColor(back: false))
                     .frame(width: width * 1.4, height: height * 0.64)
                     .position(x: width * 0.27, y: height * 1.04)
+                if backgroundID == "garden" {
+                    fence(width: width * 0.34, height: height * 0.11)
+                        .position(x: width * 0.17, y: height * 0.75)
+                    fence(width: width * 0.30, height: height * 0.11)
+                        .position(x: width * 0.85, y: height * 0.75)
+                }
 
                 if accessoryIDs.contains("tree") {
                     sceneTree(size: height * 0.38)
@@ -98,10 +109,19 @@ struct SheepSceneArtwork: View {
                         .position(x: width * 0.85, y: height * 0.77)
                 }
 
+                // 「ひつじの庭」は最後に解放される背景なので、花畑とちょうちょでいちばん華やかにする。
                 if backgroundID == "garden" {
-                    ForEach(0..<9, id: \.self) { index in
-                        flower(size: height * (index.isMultiple(of: 3) ? 0.045 : 0.032), color: index.isMultiple(of: 2) ? .white : Color(red: 1, green: 0.83, blue: 0.76))
-                            .position(x: width * (0.07 + CGFloat(index) * 0.11), y: height * (index.isMultiple(of: 2) ? 0.79 : 0.88))
+                    ForEach(0..<30, id: \.self) { index in
+                        flower(size: height * (index.isMultiple(of: 4) ? 0.065 : index.isMultiple(of: 3) ? 0.05 : 0.038),
+                               color: Self.gardenFlowerColors[index % Self.gardenFlowerColors.count])
+                            .position(
+                                x: width * (0.02 + CGFloat((index * 37) % 97) / 100),
+                                y: height * (0.80 + CGFloat((index * 13) % 18) / 100)
+                            )
+                    }
+                    ForEach(0..<3, id: \.self) { index in
+                        butterfly(size: height * 0.07, color: [Color(red: 1, green: 0.72, blue: 0.40), Color(red: 0.72, green: 0.66, blue: 1), Color(red: 1, green: 0.62, blue: 0.75)][index], index: index)
+                            .position(x: width * [0.24, 0.70, 0.40][index], y: height * [0.50, 0.42, 0.30][index])
                     }
                 }
 
@@ -206,6 +226,145 @@ struct SheepSceneArtwork: View {
         return LinearGradient(colors: colors, startPoint: .top, endPoint: .bottom)
     }
 
+    private static let gardenFlowerColors: [Color] = [
+        .white, Color(red: 1, green: 0.70, blue: 0.78), Color(red: 1, green: 0.88, blue: 0.40),
+        Color(red: 0.80, green: 0.72, blue: 1), Color(red: 1, green: 0.80, blue: 0.65)
+    ]
+
+    private func rainbow(radius: CGFloat) -> some View {
+        let colors: [Color] = [.red, .orange, .yellow, .green, .blue, .purple]
+        return ZStack {
+            ForEach(colors.indices, id: \.self) { index in
+                Circle()
+                    .trim(from: 0.5, to: 1)
+                    .stroke(colors[index].opacity(0.32), lineWidth: radius * 0.06)
+                    .frame(width: (radius - CGFloat(index) * radius * 0.06) * 2, height: (radius - CGFloat(index) * radius * 0.06) * 2)
+            }
+        }
+        .blur(radius: 1.5)
+        .accessibilityHidden(true)
+    }
+
+    private func cottage(size: CGFloat) -> some View {
+        VStack(spacing: 0) {
+            Triangle()
+                .fill(Color(red: 0.85, green: 0.42, blue: 0.38))
+                .frame(width: size * 1.15, height: size * 0.5)
+            ZStack {
+                Rectangle().fill(Color(red: 1, green: 0.96, blue: 0.88))
+                HStack(spacing: size * 0.16) {
+                    RoundedRectangle(cornerRadius: size * 0.03)
+                        .fill(Color(red: 1, green: 0.88, blue: 0.52))
+                        .frame(width: size * 0.2, height: size * 0.2)
+                    RoundedRectangle(cornerRadius: size * 0.04)
+                        .fill(Color(red: 0.55, green: 0.40, blue: 0.32))
+                        .frame(width: size * 0.22, height: size * 0.36)
+                        .offset(y: size * 0.07)
+                }
+            }
+            .frame(width: size * 0.9, height: size * 0.5)
+        }
+        .accessibilityHidden(true)
+    }
+
+    private func fence(width: CGFloat, height: CGFloat) -> some View {
+        let color = Color(red: 0.96, green: 0.92, blue: 0.84)
+        return ZStack {
+            VStack(spacing: height * 0.3) {
+                Capsule().fill(color).frame(height: height * 0.14)
+                Capsule().fill(color).frame(height: height * 0.14)
+            }
+            HStack {
+                ForEach(0..<6, id: \.self) { _ in
+                    RoundedRectangle(cornerRadius: height * 0.06)
+                        .fill(color)
+                        .frame(width: height * 0.16, height: height)
+                        .shadow(color: .black.opacity(0.08), radius: 1, y: 1)
+                }
+            }
+        }
+        .frame(width: width, height: height)
+        .accessibilityHidden(true)
+    }
+
+    private func butterfly(size: CGFloat, color: Color, index: Int) -> some View {
+        HStack(spacing: 0) {
+            Ellipse().fill(color).frame(width: size * 0.5, height: size * 0.62).rotationEffect(.degrees(-20))
+            Capsule().fill(Color(red: 0.35, green: 0.28, blue: 0.25)).frame(width: size * 0.08, height: size * 0.5)
+            Ellipse().fill(color).frame(width: size * 0.5, height: size * 0.62).rotationEffect(.degrees(20))
+        }
+        .frame(width: size, height: size)
+        .phaseAnimator(animate ? [false, true] : [false]) { content, isUp in
+            content
+                .scaleEffect(x: isUp ? 0.45 : 1, y: 1)
+                .offset(y: isUp ? -size * 0.25 : 0)
+        } animation: { _ in
+            .easeInOut(duration: 0.45 + Double(index) * 0.12)
+        }
+        .accessibilityHidden(true)
+    }
+
+    private func crescentMoon(size: CGFloat) -> some View {
+        Circle()
+            .fill(Color(red: 1, green: 0.97, blue: 0.82))
+            .frame(width: size, height: size)
+            .mask {
+                ZStack {
+                    Circle()
+                    Circle()
+                        .offset(x: size * 0.32, y: -size * 0.18)
+                        .blendMode(.destinationOut)
+                }
+                .compositingGroup()
+            }
+            .rotationEffect(.degrees(-20))
+    }
+
+    /// 「星空の丘」：天の川、満月、大小の星と流れ星。動かせるときは星をまたたかせる。
+    private func starrySky(width: CGFloat, height: CGFloat) -> some View {
+        ZStack {
+            Capsule()
+                .fill(LinearGradient(
+                    colors: [.clear, Color(red: 0.85, green: 0.80, blue: 1).opacity(0.32), Color.white.opacity(0.22), .clear],
+                    startPoint: .leading, endPoint: .trailing
+                ))
+                .frame(width: width * 1.3, height: height * 0.22)
+                .blur(radius: 10)
+                .rotationEffect(.degrees(-18))
+                .position(x: width * 0.45, y: height * 0.30)
+            Circle()
+                .fill(Color(red: 1, green: 0.95, blue: 0.75).opacity(0.35))
+                .frame(width: height * 0.42)
+                .blur(radius: 20)
+                .position(x: width * 0.80, y: height * 0.20)
+            Circle()
+                .fill(Color(red: 1, green: 0.97, blue: 0.84))
+                .frame(width: height * 0.17)
+                .position(x: width * 0.80, y: height * 0.20)
+            ForEach(0..<40, id: \.self) { index in
+                let size: CGFloat = index.isMultiple(of: 7) ? 4 : index.isMultiple(of: 3) ? 2.6 : 1.6
+                Circle()
+                    .fill(index.isMultiple(of: 5) ? Color(red: 1, green: 0.92, blue: 0.70) : .white)
+                    .frame(width: size, height: size)
+                    .shadow(color: .white.opacity(size > 3 ? 0.9 : 0), radius: 3)
+                    .phaseAnimator(animate && index.isMultiple(of: 2) ? [false, true] : [true]) { content, isBright in
+                        content.opacity(isBright ? 1 : 0.35)
+                    } animation: { _ in
+                        .easeInOut(duration: 1.1 + Double(index % 5) * 0.3)
+                    }
+                    .position(
+                        x: width * (0.03 + CGFloat((index * 41) % 94) / 100),
+                        y: height * (0.04 + CGFloat((index * 29) % 56) / 100)
+                    )
+            }
+            Capsule()
+                .fill(LinearGradient(colors: [.white.opacity(0), .white.opacity(0.9)], startPoint: .leading, endPoint: .trailing))
+                .frame(width: width * 0.16, height: 2)
+                .rotationEffect(.degrees(28))
+                .position(x: width * 0.30, y: height * 0.16)
+        }
+    }
+
     private func cloud(width: CGFloat, height: CGFloat) -> some View {
         ZStack {
             Ellipse().frame(width: width, height: height * 0.75).offset(y: height * 0.15)
@@ -289,6 +448,17 @@ struct SheepSceneArtwork: View {
         }
         .frame(width: size, height: size * 0.7)
         .accessibilityHidden(true)
+    }
+}
+
+private struct Triangle: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: rect.midX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
+        path.closeSubpath()
+        return path
     }
 }
 
