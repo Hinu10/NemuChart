@@ -31,7 +31,7 @@ enum AlarmSoundChoice: String, Codable, CaseIterable, Sendable {
     var speechText: String? {
         switch self {
         case .voiceMorning: String(localized: "朝です。起きなさい！")
-        case .voiceCountdown: String(localized: "起床まで、3、2、1。起きろー！")
+        case .voiceCountdown: String(localized: "起床まで、さん、に、いち。起きろ！")
         default: nil
         }
     }

@@ -170,11 +170,20 @@ final class AlarmSpeechRenderer {
 
     static func utterance(_ text: String) -> AVSpeechUtterance {
         let utterance = AVSpeechUtterance(string: text)
-        utterance.voice = AVSpeechSynthesisVoice(language: "ja-JP")
-        utterance.rate = AVSpeechUtteranceDefaultSpeechRate * 1.05
-        utterance.pitchMultiplier = 0.85
+        utterance.voice = japaneseVoice
+        // 速さや高さをいじると抑揚が崩れるため、標準よりわずかにゆっくりにするだけにする。
+        utterance.rate = AVSpeechUtteranceDefaultSpeechRate * 0.95
+        utterance.pitchMultiplier = 1
         utterance.volume = 1
         return utterance
+    }
+
+    /// 端末に入っている日本語の声のうち、いちばん品質の高いもの（拡張・プレミアム音声があればそれ）を使う。
+    private static var japaneseVoice: AVSpeechSynthesisVoice? {
+        AVSpeechSynthesisVoice.speechVoices()
+            .filter { $0.language == "ja-JP" }
+            .max { $0.quality.rawValue < $1.quality.rawValue }
+            ?? AVSpeechSynthesisVoice(language: "ja-JP")
     }
 
     func render(_ text: String) async throws -> [Float] {
