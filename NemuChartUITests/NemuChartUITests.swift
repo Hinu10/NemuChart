@@ -68,6 +68,12 @@ final class NemuChartUITests: XCTestCase {
 
         openSettings(in: app)
 
+        XCTAssertTrue(scrollToElement(app.buttons["tonightGoalAndAlarmButton"], in: app))
+        app.buttons["tonightGoalAndAlarmButton"].tap()
+        XCTAssertTrue(app.navigationBars["今夜の目標"].waitForExistence(timeout: 3))
+        app.navigationBars["今夜の目標"].buttons["閉じる"].tap()
+        XCTAssertTrue(app.navigationBars["設定"].waitForExistence(timeout: 3))
+
         XCTAssertTrue(scrollToElement(app.buttons["additionalFeaturesLink"], in: app))
         XCTAssertTrue(app.staticTexts["mvpFutureFeaturesDescription"].exists)
         app.buttons["additionalFeaturesLink"].tap()

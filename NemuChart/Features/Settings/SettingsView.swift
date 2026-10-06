@@ -21,6 +21,7 @@ struct SettingsView: View {
     @State private var hasPendingChanges = false
     @State private var inferredEstimate: ComfortableDurationEstimate?
     @State private var showingWeeklyGoal = false
+    @State private var showingTonightGoal = false
 
     init(
         dependencies: AppDependencies,
@@ -96,13 +97,19 @@ struct SettingsView: View {
                         .foregroundStyle(.secondary)
                 }
                 Section("追加機能") {
+                    Button {
+                        showingTonightGoal = true
+                    } label: {
+                        Label("今夜の目標・アラーム", systemImage: "alarm")
+                    }
+                    .accessibilityIdentifier("tonightGoalAndAlarmButton")
                     NavigationLink {
                         FutureFeaturesView(dependencies: dependencies)
                     } label: {
                         Label("追加機能", systemImage: "sparkles")
                     }
                     .accessibilityIdentifier("additionalFeaturesLink")
-                    Text("長期分析、生活要因の比較、データ書き出しを利用できます。")
+                    Text("今夜の目標とアラーム、長期分析、生活要因の比較、データ書き出しを利用できます。")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                         .accessibilityIdentifier("mvpFutureFeaturesDescription")
@@ -165,6 +172,16 @@ struct SettingsView: View {
         .alert("操作を完了できませんでした", isPresented: Binding(
             get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } }
         )) { Button("OK", role: .cancel) {} } message: { Text(errorMessage ?? "") }
+        .sheet(isPresented: $showingTonightGoal) {
+            TonightGoalView(
+                settings: settings,
+                records: (try? dependencies.sleepRecordRepository.records()) ?? [],
+                repository: dependencies.sleepGoalRepository,
+                preferences: dependencies.preferences,
+                planningService: dependencies.goalPlanningService,
+                notificationService: dependencies.notificationService
+            )
+        }
         .sheet(isPresented: $showingWeeklyGoal) {
             WeeklyGoalView(
                 repository: dependencies.sleepRecordRepository,
