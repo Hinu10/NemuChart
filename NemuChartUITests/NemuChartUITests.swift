@@ -142,7 +142,11 @@ final class NemuChartUITests: XCTestCase {
         XCTAssertFalse(app.staticTexts["二度寝"].exists)
         XCTAssertFalse(app.switches["スマートフォン終了時刻を記録"].exists)
 
-        XCTAssertTrue(scrollToElement(app.datePickers["smartphoneEndDateTimePicker"], in: app))
+        // 未入力と区別するため、スマートフォン終了日時はボタンを押したときだけ入力欄を出す。
+        XCTAssertFalse(app.datePickers["smartphoneEndDateTimePicker"].exists)
+        XCTAssertTrue(scrollToElement(app.buttons["smartphoneEndTimeEntryButton"], in: app))
+        app.buttons["smartphoneEndTimeEntryButton"].tap()
+        XCTAssertTrue(app.datePickers["smartphoneEndDateTimePicker"].waitForExistence(timeout: 3))
     }
 
     func testHomeRendersWithAccessibilityTextSizeAndDarkMode() {

@@ -169,6 +169,7 @@ struct SleepRecordFlow: View {
                         Button("スマートフォン終了日時を未入力に戻す") { draft.smartphoneEndTime = nil }
                     } else {
                         Button("スマートフォン終了日時を入力") { draft.smartphoneEndTime = draft.sleepClock }
+                            .accessibilityIdentifier("smartphoneEndTimeEntryButton")
                     }
                     OptionalRatingPicker(title: "ストレス", value: $draft.stress)
                     OptionalRatingPicker(title: "快適さ", value: $draft.comfort)
