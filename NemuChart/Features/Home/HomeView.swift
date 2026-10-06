@@ -293,17 +293,13 @@ struct HomeView: View {
                 sheepAssetName: sheepAssetName,
                 backgroundID: automaticBackground?.id,
                 effectID: automaticEffect?.id,
-                accessoryID: automaticAccessory?.id,
+                accessoryIDs: unlockedSceneDecorations,
                 animate: !reduceMotion,
                 fadeIntoStatus: true,
                 nightMode: period == .night
             )
             .frame(height: artworkHeight)
-            .accessibilityLabel([automaticBackground?.name, automaticEffect?.name, automaticAccessory?.name]
-                .compactMap { $0 }.joined(separator: "、").isEmpty
-                ? "ひつじの景色"
-                : "ひつじの景色、" + [automaticBackground?.name, automaticEffect?.name, automaticAccessory?.name]
-                    .compactMap { $0 }.joined(separator: "、"))
+            .accessibilityLabel(sceneAccessibilityLabel)
             Spacer(minLength: 0)
             compactLandscapeSummary(isTight: isTight)
                 .padding(.horizontal, HomeLandscapeLayout.contentPadding)
@@ -474,15 +470,16 @@ struct HomeView: View {
         }
     }
 
-    private var automaticAccessory: SheepCollectible? {
-        let unlocked = SheepCollectible.all.filter {
+    private var unlockedSceneDecorations: Set<String> {
+        Set(SheepCollectible.all.filter {
             $0.category == .accessory && preferenceData.unlockedContentIDs.contains($0.id)
-        }
-        guard !unlocked.isEmpty else { return nil }
-        let month = Calendar.current.component(.month, from: now)
-        if [12, 1, 2].contains(month), let scarf = unlocked.first(where: { $0.id == "scarf" }) { return scarf }
-        if period == .night, let cap = unlocked.first(where: { $0.id == "nightcap" }) { return cap }
-        return unlocked[Calendar.current.ordinality(of: .day, in: .era, for: now)! % unlocked.count]
+        }.map(\.id))
+    }
+
+    private var sceneAccessibilityLabel: String {
+        let visibleNames = [automaticBackground?.name, automaticEffect?.name].compactMap { $0 }
+            + SheepCollectible.all.filter { unlockedSceneDecorations.contains($0.id) }.map(\.name)
+        return (["ひつじの景色"] + visibleNames).joined(separator: "、")
     }
 
     private var automaticBackground: SheepCollectible? {

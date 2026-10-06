@@ -35,6 +35,10 @@ struct SheepCollectionView: View {
         return SheepCollectible.all.last(where: { $0.category == category && unlockedIDs.contains($0.id) })?.id
     }
 
+    private var previewDecorationIDs: Set<String> {
+        Set(SheepCollectible.all.filter { $0.category == .accessory && unlockedIDs.contains($0.id) }.map(\.id))
+    }
+
     private var columns: [GridItem] {
         dynamicTypeSize.isAccessibilitySize
             ? [GridItem(.flexible())]
@@ -88,7 +92,7 @@ struct SheepCollectionView: View {
                 sheepAssetName: sheepAssetName,
                 backgroundID: previewID(for: .background),
                 effectID: previewID(for: .effect),
-                accessoryID: previewID(for: .accessory)
+                accessoryIDs: previewDecorationIDs
             )
             .frame(height: 205)
             .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
@@ -96,7 +100,7 @@ struct SheepCollectionView: View {
             Text("ひつじの景色")
                 .font(.system(.title2, design: .rounded, weight: .bold))
                 .foregroundStyle(ink)
-            Text("記録を重ねると、小物や景色が増えていきます")
+            Text("記録を重ねると、木や草花が景色に増えていきます")
                 .font(.subheadline)
                 .foregroundStyle(mutedInk)
                 .multilineTextAlignment(.center)
@@ -166,7 +170,7 @@ struct SheepCollectionView: View {
                     sheepAssetName: sheepAssetName,
                     backgroundID: item.category == .background ? item.id : nil,
                     effectID: item.category == .effect ? item.id : nil,
-                    accessoryID: item.category == .accessory ? item.id : nil
+                    accessoryIDs: item.category == .accessory ? [item.id] : []
                 )
                 .saturation(unlocked ? 1 : 0.2)
                 .opacity(unlocked ? 1 : 0.48)
@@ -210,7 +214,7 @@ struct SheepCollectionView: View {
 private extension SheepCollectible.Category {
     var symbol: String {
         switch self {
-        case .accessory: "moon.stars.fill"
+        case .accessory: "tree.fill"
         case .background: "cloud.sun.fill"
         case .effect: "sparkles"
         }

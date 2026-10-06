@@ -48,7 +48,8 @@ struct AppPreferenceData: Codable, Equatable {
         alarmResults = try values.decodeIfPresent([AlarmResult].self, forKey: .alarmResults) ?? []
         customWeeklyGoalText = try values.decodeIfPresent(String.self, forKey: .customWeeklyGoalText) ?? ""
         customWeeklyGoalCompleted = try values.decodeIfPresent(Bool.self, forKey: .customWeeklyGoalCompleted) ?? false
-        unlockedContentIDs = try values.decodeIfPresent(Set<String>.self, forKey: .unlockedContentIDs) ?? []
+        let savedIDs = try values.decodeIfPresent(Set<String>.self, forKey: .unlockedContentIDs) ?? []
+        unlockedContentIDs = Set(savedIDs.map { SheepCollectible.legacyAccessoryIDs[$0] ?? $0 })
         growthEarnings = try values.decodeIfPresent([UUID: SheepGrowthService.Earning].self, forKey: .growthEarnings) ?? [:]
         weeklyGoalHistory = try values.decodeIfPresent([WeeklyGoal].self, forKey: .weeklyGoalHistory) ?? []
     }

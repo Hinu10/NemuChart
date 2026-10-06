@@ -9,16 +9,20 @@ struct SheepCollectible: Identifiable, Sendable {
     let requiredGrowth: Int
 
     static let all: [Self] = [
-        .init(id: "nightcap", name: "ナイトキャップ", symbol: "moon.stars.fill", category: .accessory, requiredGrowth: 50),
+        .init(id: "tree", name: "丘の木", symbol: "tree.fill", category: .accessory, requiredGrowth: 50),
         .init(id: "sparkle", name: "きらきら", symbol: "sparkles", category: .effect, requiredGrowth: 100),
         .init(id: "morning", name: "朝の草原", symbol: "sunrise.fill", category: .background, requiredGrowth: 180),
-        .init(id: "scarf", name: "マフラー", symbol: "wind", category: .accessory, requiredGrowth: 300),
+        .init(id: "grass", name: "草むら", symbol: "leaf.fill", category: .accessory, requiredGrowth: 300),
         .init(id: "stars", name: "星空の丘", symbol: "star.circle.fill", category: .background, requiredGrowth: 450),
         .init(id: "flowers", name: "花の舞", symbol: "camera.macro", category: .effect, requiredGrowth: 650),
-        .init(id: "ribbon", name: "リボン", symbol: "ribbon", category: .accessory, requiredGrowth: 900),
+        .init(id: "shrub", name: "花の低木", symbol: "camera.macro", category: .accessory, requiredGrowth: 900),
         .init(id: "sunset", name: "夕焼けの丘", symbol: "sunset.fill", category: .background, requiredGrowth: 1200),
         .init(id: "moonlight", name: "月あかり", symbol: "moon.circle.fill", category: .effect, requiredGrowth: 1600),
         .init(id: "garden", name: "ひつじの庭", symbol: "leaf.fill", category: .background, requiredGrowth: 2100)
+    ]
+
+    static let legacyAccessoryIDs: [String: String] = [
+        "nightcap": "tree", "scarf": "grass", "ribbon": "shrub"
     ]
 }
 

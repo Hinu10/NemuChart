@@ -79,6 +79,13 @@ final class MVPGoalsSettingsSafetyTests: XCTestCase {
         XCTAssertEqual(decoded.alarmSound, .system)
     }
 
+    func testOldSheepAccessoriesBecomeSceneDecorations() throws {
+        let saved = Data(#"{"unlockedContentIDs":["nightcap","scarf","ribbon","morning"]}"#.utf8)
+        let decoded = try JSONDecoder().decode(AppPreferenceData.self, from: saved)
+
+        XCTAssertEqual(decoded.unlockedContentIDs, Set(["tree", "grass", "shrub", "morning"]))
+    }
+
     func testWeeklyGoalRewardIDsRemainUniqueAfterPersistence() throws {
         let suiteName = "NemuChartTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!

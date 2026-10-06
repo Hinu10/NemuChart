@@ -6,7 +6,7 @@ struct SheepSceneArtwork: View {
     let sheepAssetName: String
     var backgroundID: String? = nil
     var effectID: String? = nil
-    var accessoryID: String? = nil
+    var accessoryIDs: Set<String> = []
     var animate: Bool = false
     var fadeIntoStatus: Bool = false
     var nightMode: Bool = false
@@ -82,6 +82,23 @@ struct SheepSceneArtwork: View {
                     .frame(width: width * 1.4, height: height * 0.64)
                     .position(x: width * 0.27, y: height * 1.04)
 
+                if accessoryIDs.contains("tree") {
+                    sceneTree(size: height * 0.38)
+                        .position(x: width * 0.17, y: height * 0.66)
+                }
+                if accessoryIDs.contains("grass") {
+                    grassTuft(size: height * 0.11)
+                        .position(x: width * 0.08, y: height * 0.83)
+                    grassTuft(size: height * 0.08)
+                        .position(x: width * 0.34, y: height * 0.91)
+                    grassTuft(size: height * 0.10)
+                        .position(x: width * 0.72, y: height * 0.84)
+                }
+                if accessoryIDs.contains("shrub") {
+                    floweringShrub(size: height * 0.25)
+                        .position(x: width * 0.85, y: height * 0.77)
+                }
+
                 if backgroundID == "garden" {
                     ForEach(0..<9, id: \.self) { index in
                         flower(size: height * (index.isMultiple(of: 3) ? 0.045 : 0.032), color: index.isMultiple(of: 2) ? .white : Color(red: 1, green: 0.83, blue: 0.76))
@@ -120,16 +137,6 @@ struct SheepSceneArtwork: View {
                     .shadow(color: Color(red: 0.12, green: 0.25, blue: 0.35).opacity(0.18), radius: 8, y: 7)
                     .animation(animate ? .easeInOut(duration: 3.4).repeatForever(autoreverses: true) : nil, value: floating)
 
-                if let accessoryID {
-                    SheepSceneAccessory(id: accessoryID)
-                        .frame(width: height * 0.21, height: height * 0.16)
-                        .position(
-                            x: width * (accessoryID == "nightcap" ? 0.56 : 0.61),
-                            y: height * (accessoryID == "scarf" ? 0.68 : accessoryID == "ribbon" ? 0.52 : 0.49)
-                        )
-                        .offset(y: animate ? (floating ? -3 : 2) : 0)
-                        .animation(animate ? .easeInOut(duration: 3.4).repeatForever(autoreverses: true) : nil, value: floating)
-                }
             }
             .frame(width: width, height: height)
             .clipped()
@@ -185,43 +192,64 @@ struct SheepSceneArtwork: View {
         }
         .frame(width: size, height: size)
     }
-}
 
-private struct SheepSceneAccessory: View {
-    let id: String
+    private func sceneTree(size: CGFloat) -> some View {
+        ZStack(alignment: .bottom) {
+            RoundedRectangle(cornerRadius: size * 0.025)
+                .fill(Color(red: 0.47, green: 0.37, blue: 0.31))
+                .frame(width: size * 0.13, height: size * 0.52)
+            Circle()
+                .fill(Color(red: 0.30, green: 0.62, blue: 0.48))
+                .frame(width: size * 0.58)
+                .offset(x: -size * 0.18, y: -size * 0.39)
+            Circle()
+                .fill(Color(red: 0.39, green: 0.72, blue: 0.52))
+                .frame(width: size * 0.68)
+                .offset(x: size * 0.14, y: -size * 0.42)
+            Circle()
+                .fill(Color(red: 0.48, green: 0.78, blue: 0.58))
+                .frame(width: size * 0.52)
+                .offset(x: -size * 0.04, y: -size * 0.65)
+        }
+        .frame(width: size, height: size)
+        .accessibilityHidden(true)
+    }
 
-    var body: some View {
-        GeometryReader { proxy in
-            let size = proxy.size
-            switch id {
-            case "nightcap":
-                ZStack(alignment: .bottomTrailing) {
-                    UnevenRoundedRectangle(topLeadingRadius: size.width * 0.8, bottomLeadingRadius: 3, bottomTrailingRadius: size.width * 0.25, topTrailingRadius: 2)
-                        .fill(LinearGradient(colors: [Color(red: 0.47, green: 0.53, blue: 0.86), Color(red: 0.26, green: 0.35, blue: 0.66)], startPoint: .topLeading, endPoint: .bottomTrailing))
-                        .frame(width: size.width * 0.85, height: size.height * 0.8)
-                        .rotationEffect(.degrees(-18))
-                    Capsule().fill(.white.opacity(0.92)).frame(height: size.height * 0.18)
-                    Circle().fill(.white).frame(width: size.height * 0.25).offset(x: -size.width * 0.65, y: -size.height * 0.58)
-                }
-            case "scarf":
-                ZStack {
-                    Ellipse().stroke(Color(red: 0.86, green: 0.45, blue: 0.42), lineWidth: size.height * 0.27)
-                    RoundedRectangle(cornerRadius: 3).fill(Color(red: 0.89, green: 0.51, blue: 0.45))
-                        .frame(width: size.width * 0.22, height: size.height * 0.7)
-                        .rotationEffect(.degrees(-18))
-                        .offset(x: size.width * 0.22, y: size.height * 0.32)
-                }
-            case "ribbon":
-                HStack(spacing: 1) {
-                    Ellipse().fill(Color(red: 0.94, green: 0.55, blue: 0.67)).rotationEffect(.degrees(25))
-                    Circle().fill(Color(red: 0.86, green: 0.39, blue: 0.57)).frame(width: size.width * 0.18)
-                    Ellipse().fill(Color(red: 0.94, green: 0.55, blue: 0.67)).rotationEffect(.degrees(-25))
-                }
-            default:
-                EmptyView()
+    private func grassTuft(size: CGFloat) -> some View {
+        ZStack(alignment: .bottom) {
+            ForEach(-2...2, id: \.self) { index in
+                Capsule()
+                    .fill(index.isMultiple(of: 2) ? Color(red: 0.30, green: 0.62, blue: 0.43) : Color(red: 0.43, green: 0.72, blue: 0.48))
+                    .frame(width: size * 0.12, height: size * (index == 0 ? 0.9 : 0.7))
+                    .rotationEffect(.degrees(Double(index) * 19))
+                    .offset(x: size * CGFloat(index) * 0.14)
             }
         }
-        .shadow(color: .black.opacity(0.12), radius: 2, y: 2)
+        .frame(width: size, height: size)
+        .accessibilityHidden(true)
+    }
+
+    private func floweringShrub(size: CGFloat) -> some View {
+        ZStack {
+            Ellipse()
+                .fill(Color(red: 0.33, green: 0.65, blue: 0.45))
+                .frame(width: size, height: size * 0.60)
+            Circle()
+                .fill(Color(red: 0.48, green: 0.77, blue: 0.53))
+                .frame(width: size * 0.66)
+                .offset(x: -size * 0.22, y: -size * 0.13)
+            Circle()
+                .fill(Color(red: 0.42, green: 0.72, blue: 0.50))
+                .frame(width: size * 0.69)
+                .offset(x: size * 0.21, y: -size * 0.14)
+            flower(size: size * 0.18, color: .white)
+                .offset(x: -size * 0.24, y: -size * 0.23)
+            flower(size: size * 0.14, color: Color(red: 1, green: 0.84, blue: 0.79))
+                .offset(x: size * 0.23, y: -size * 0.13)
+            flower(size: size * 0.12, color: .white)
+                .offset(x: size * 0.02, y: size * 0.12)
+        }
+        .frame(width: size, height: size * 0.7)
         .accessibilityHidden(true)
     }
 }
