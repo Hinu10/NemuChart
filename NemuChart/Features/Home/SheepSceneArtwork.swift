@@ -132,10 +132,12 @@ struct SheepSceneArtwork: View {
                     .resizable()
                     .scaledToFit()
                     .frame(width: height * 0.9, height: height * 0.9)
-                    .position(x: width * 0.5, y: height * 0.60)
-                    .offset(y: animate ? (floating ? -3 : 2) : 0)
+                    // Scope the endless animation to the float offset so layout changes are not animated forever.
+                    .animation(animate ? .easeInOut(duration: 3.4).repeatForever(autoreverses: true) : nil) {
+                        $0.offset(y: animate ? (floating ? -3 : 2) : 0)
+                    }
                     .shadow(color: Color(red: 0.12, green: 0.25, blue: 0.35).opacity(0.18), radius: 8, y: 7)
-                    .animation(animate ? .easeInOut(duration: 3.4).repeatForever(autoreverses: true) : nil, value: floating)
+                    .position(x: width * 0.5, y: height * 0.60)
 
             }
             .frame(width: width, height: height)

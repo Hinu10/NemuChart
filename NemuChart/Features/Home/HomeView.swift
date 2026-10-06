@@ -305,7 +305,7 @@ struct HomeView: View {
                 .padding(.horizontal, HomeLandscapeLayout.contentPadding)
                 .padding(.bottom, HomeLandscapeLayout.contentPadding)
         }
-        .frame(height: cardHeight)
+        .frame(minHeight: cardHeight)
         .background(HomeLandscapeLayout.statusBackground)
         .clipShape(HomeLandscapeLayout.cardShape)
         .overlay(HomeLandscapeLayout.cardShape.stroke(.white.opacity(0.42), lineWidth: 1))
