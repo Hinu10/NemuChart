@@ -86,3 +86,58 @@ struct LongTermReport: Equatable, Sendable {
     let weekendFreshness: Double?
     let timeZoneCount: Int
 }
+
+struct AlarmSoundSummary: Identifiable, Equatable, Sendable {
+    var id: String { sound.rawValue }
+    let sound: AlarmSoundChoice
+    let stoppedCount: Int
+    let averageSnoozeCount: Double
+    let averageMinutesToStop: Double
+}
+
+enum AlarmResultLog {
+    static let maximumCount = 120
+
+    static func scheduled(_ result: AlarmResult, in results: [AlarmResult]) -> [AlarmResult] {
+        Array((results.filter { $0.id != result.id } + [result]).suffix(maximumCount))
+    }
+
+    static func snoozed(id: UUID, in results: [AlarmResult]) -> [AlarmResult] {
+        results.map { result in
+            guard result.id == id, result.stoppedAt == nil else { return result }
+            var updated = result
+            updated.snoozeCount += 1
+            return updated
+        }
+    }
+
+    static func stopped(id: UUID, at date: Date, in results: [AlarmResult]) -> [AlarmResult] {
+        results.map { result in
+            guard result.id == id, result.stoppedAt == nil else { return result }
+            var updated = result
+            updated.stoppedAt = max(date, result.scheduledAt)
+            return updated
+        }
+    }
+
+    /// 鳴る前に取り消した予約だけを除く。鳴った後の結果は残す。
+    static func cancelled(id: UUID, now: Date, in results: [AlarmResult]) -> [AlarmResult] {
+        results.filter { !($0.id == id && $0.stoppedAt == nil && $0.snoozeCount == 0 && $0.scheduledAt > now) }
+    }
+
+    static func summaries(_ results: [AlarmResult]) -> [AlarmSoundSummary] {
+        AlarmSoundChoice.allCases.compactMap { sound in
+            let stopped = results.filter { $0.sound == sound && $0.stoppedAt != nil }
+            guard !stopped.isEmpty else { return nil }
+            let count = Double(stopped.count)
+            let snoozes = stopped.reduce(0) { $0 + $1.snoozeCount }
+            let minutes = stopped.reduce(0.0) { $0 + $1.stoppedAt!.timeIntervalSince($1.scheduledAt) / 60 }
+            return AlarmSoundSummary(
+                sound: sound,
+                stoppedCount: stopped.count,
+                averageSnoozeCount: Double(snoozes) / count,
+                averageMinutesToStop: minutes / count
+            )
+        }
+    }
+}

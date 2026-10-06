@@ -13,6 +13,11 @@ struct FutureFeaturesView: View {
                 NavigationLink("1か月分析") {
                     LongTermReportsView(dependencies: dependencies)
                 }
+                if #available(iOS 26.0, *) {
+                    NavigationLink("アラーム音ごとの結果") {
+                        AlarmResultsView(preferences: dependencies.preferences)
+                    }
+                }
             }
             Section("データ") {
                 NavigationLink("CSV / JSONを書き出す") {
@@ -133,6 +138,61 @@ private struct LongTermReportsView: View {
         let records = (try? dependencies.sleepRecordRepository.records()) ?? []
         recordCount = records.count
         report = dependencies.longTermReportService.report(records: records, days: days)
+    }
+}
+
+private struct AlarmResultsView: View {
+    let preferences: AppPreferencesStore
+    @State private var summaries: [AlarmSoundSummary] = []
+    @State private var recent: [AlarmResult] = []
+
+    var body: some View {
+        List {
+            if summaries.isEmpty {
+                ContentUnavailableView(
+                    "まだ結果がありません",
+                    systemImage: "alarm",
+                    description: Text("今夜の目標でアラームを設定し、『起きた！』で止めると、音ごとの結果がここにたまります。")
+                )
+            } else {
+                Section("音ごとの平均") {
+                    ForEach(summaries) { summary in
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(summary.sound.displayName).font(.headline)
+                            Text("\(summary.stoppedCount)回・スヌーズ平均 \(summary.averageSnoozeCount, specifier: "%.1f")回・止めるまで平均 \(summary.averageMinutesToStop, specifier: "%.0f")分")
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
+                        .accessibilityElement(children: .combine)
+                    }
+                }
+                Section("最近のアラーム") {
+                    ForEach(recent) { result in
+                        LabeledContent(result.sound.displayName) {
+                            Text(detail(result))
+                        }
+                        .font(.footnote)
+                    }
+                }
+            }
+            Section("読み方") {
+                Text("アラームの予定時刻から『起きた！』を押すまでの時間とスヌーズ回数の記録です。その日の体調や就寝時刻にも左右されるため、音の効果を示すものではありません。")
+                    .font(.footnote).foregroundStyle(.secondary)
+            }
+        }
+        .navigationTitle("アラームの結果")
+        .task { load() }
+    }
+
+    private func load() {
+        let results = preferences.load().alarmResults
+        summaries = AlarmResultLog.summaries(results)
+        recent = results.filter { $0.stoppedAt != nil }.sorted { $0.scheduledAt > $1.scheduledAt }.prefix(14).map { $0 }
+    }
+
+    private func detail(_ result: AlarmResult) -> String {
+        let day = result.scheduledAt.formatted(.dateTime.month().day())
+        let stop = result.stoppedAt?.formatted(date: .omitted, time: .shortened) ?? "-"
+        return String(localized: "\(day) \(stop)に停止・スヌーズ\(result.snoozeCount)回")
     }
 }
 
