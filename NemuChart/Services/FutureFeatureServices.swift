@@ -31,8 +31,6 @@ struct LifestyleAssociationService: Sendable {
         case .alcohol: record.factors.consumedAlcohol
         case .caffeine: record.factors.consumedCaffeine
         case .nap: record.factors.napMinutes.map { $0 > 0 }
-        case .smartphone:
-            record.factors.smartphoneEndTime.map { record.bedTime.timeIntervalSince($0) >= 30 * 60 }
         }
     }
 
@@ -121,7 +119,7 @@ struct SleepDataExportService: Sendable {
     static let columns = [
         "記録ID", "睡眠日", "タイムゾーン", "就床日時", "入眠日時", "起床日時", "スッキリ度(0-100)",
         "徹夜", "中途覚醒(回)", "スヌーズ(回)", "昼寝(分)", "飲酒",
-        "カフェイン", "スマートフォン終了日時", "ストレス(1-5)", "快適さ(1-5)", "いびきの指摘",
+        "カフェイン", "ストレス(1-5)", "快適さ(1-5)", "いびきの指摘",
         "呼吸停止の指摘", "作成日時", "更新日時"
     ]
 
@@ -142,7 +140,7 @@ struct SleepDataExportService: Sendable {
                 date(record.bedTime), date(record.sleepStart), date(record.wakeTime), .number(record.freshnessValue),
                 .flag(record.isAllNighter), number(factors.awakeningCount), number(factors.snoozeCount),
                 number(factors.napMinutes), flag(factors.consumedAlcohol),
-                flag(factors.consumedCaffeine), factors.smartphoneEndTime.map(date) ?? .missing,
+                flag(factors.consumedCaffeine),
                 number(factors.stress?.rawValue), number(factors.comfort?.rawValue), flag(factors.reportedSnoring),
                 flag(factors.reportedBreathingPause), date(record.createdAt), date(record.updatedAt)
             ]

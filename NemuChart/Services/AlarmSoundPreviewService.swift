@@ -186,7 +186,27 @@ final class AlarmSpeechRenderer {
             ?? AVSpeechSynthesisVoice(language: "ja-JP")
     }
 
-    func render(_ text: String) async throws -> [Float] {
+    /// 区切りごとに読み上げ、前後の無音を詰めてから決まった長さの間を入れてつなぐ。
+    func render(_ parts: [(text: String, pause: Double)]) async throws -> [Float] {
+        var samples: [Float] = []
+        for part in parts {
+            samples += Self.trimmingSilence(try await renderPart(part.text))
+            samples += [Float](repeating: 0, count: Int(AlarmSoundSynthesizer.sampleRate * part.pause))
+        }
+        guard !samples.isEmpty else { throw AlarmSpeechError.unavailable }
+        // 合成音と同じくらいの大きさにそろえる（WAV書き出し時に4倍される）。
+        let peak = samples.map(abs).max() ?? 1
+        return samples.map { $0 / max(peak, 0.001) * 0.24 }
+    }
+
+    private static func trimmingSilence(_ samples: [Float]) -> [Float] {
+        let threshold: Float = 0.01
+        guard let first = samples.firstIndex(where: { abs($0) > threshold }),
+              let last = samples.lastIndex(where: { abs($0) > threshold }) else { return [] }
+        return Array(samples[first...last])
+    }
+
+    private func renderPart(_ text: String) async throws -> [Float] {
         final class Collector { var samples: [Float] = []; var rate = 0.0; var finished = false }
         let collector = Collector()
         let samples: [Float] = await withCheckedContinuation { continuation in
@@ -207,9 +227,7 @@ final class AlarmSpeechRenderer {
             }
         }
         guard !samples.isEmpty else { throw AlarmSpeechError.unavailable }
-        // 合成音と同じくらいの大きさにそろえる（WAV書き出し時に4倍される）。
-        let peak = samples.map(abs).max() ?? 1
-        return samples.map { $0 / max(peak, 0.001) * 0.24 }
+        return samples
     }
 }
 
@@ -243,9 +261,11 @@ final class AlarmSoundPreviewService {
         if !engine.isRunning { try engine.start() }
         player.scheduleBuffer(buffer, at: nil)
         player.play()
-        if let text = sound.speechText {
-            let utterance = AlarmSpeechRenderer.utterance(text)
-            utterance.preUtteranceDelay = AlarmSoundSynthesizer.phraseDuration(sound)
+        // アラーム用の音源と同じ区切りと間で読み上げる。
+        for (index, part) in (sound.speechParts ?? []).enumerated() {
+            let utterance = AlarmSpeechRenderer.utterance(part.text)
+            if index == 0 { utterance.preUtteranceDelay = AlarmSoundSynthesizer.phraseDuration(sound) }
+            utterance.postUtteranceDelay = part.pause
             speaker.speak(utterance)
         }
     }

@@ -9,9 +9,7 @@ struct TonightGoalView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var wakeTime: Date
     @State private var sleepTime: Date
-    @State private var bedTime: Date
     @State private var actionGoal: DailyActionGoal
-    @State private var usedObservedLatency: Bool
     @State private var errorMessage: String?
     @State private var alarmSound: AlarmSoundChoice
     @State private var alarmNotice: String?
@@ -20,6 +18,7 @@ struct TonightGoalView: View {
     @State private var isScheduling = false
     @State private var wentToBedAt: Date?
     @AppStorage("NemuChart.alarmEnabled") private var alarmEnabled = false
+    @AppStorage("NemuChart.morningNotificationEnabled") private var morningNotificationEnabled = false
 
     init(
         settings: UserSettings,
@@ -39,20 +38,18 @@ struct TonightGoalView: View {
         // 今日すでに保存した目標があれば、開き直しても提案値に戻さずその時刻を出す。
         let saved = (try? repository.goals().first).flatMap { Calendar.current.isDateInToday($0.createdAt) ? $0 : nil }
         _wakeTime = State(initialValue: Self.date(saved?.targetWakeTime ?? plan.targetWakeTime))
-        _sleepTime = State(initialValue: Self.date(saved?.targetSleepTime ?? plan.targetSleepTime))
-        _bedTime = State(initialValue: Self.date(saved?.targetBedTime ?? plan.targetBedTime))
+        // 眠り始める目安時間は、画面を開いた時刻を初期値にする。
+        _sleepTime = State(initialValue: Date())
         _actionGoal = State(initialValue: preferences.load().actionGoal ?? .windDown)
         _alarmSound = State(initialValue: preferences.load().alarmSound)
         _scheduledAlarm = State(initialValue: NemuAlarmService.upcoming(in: preferences.load()).map { ($0.date, $0.sound) })
-        _usedObservedLatency = State(initialValue: plan.usedObservedLatency)
     }
 
     var body: some View {
         NavigationStack {
             Form {
                 Section("今夜の目標") {
-                    DatePicker("ベッドに入る", selection: $bedTime, displayedComponents: .hourAndMinute)
-                    DatePicker("眠り始める目安", selection: $sleepTime, displayedComponents: .hourAndMinute)
+                    DatePicker("眠り始める目安時間", selection: $sleepTime, displayedComponents: .hourAndMinute)
                     DatePicker("起きる", selection: $wakeTime, displayedComponents: .hourAndMinute)
                     Picker("行動目標（1件）", selection: $actionGoal) {
                         ForEach(DailyActionGoal.allCases, id: \.self) { Text($0.displayName).tag($0) }
@@ -80,12 +77,15 @@ struct TonightGoalView: View {
                         }
                         Text("アラームは「セット」を押したときだけ予約されます。時刻や音を変えても、セットし直すまで前の内容で鳴ります。『起きた！』で押した時刻を記録画面に入力できます。スヌーズは\(NemuAlarmService.snoozeMinutes)分です。")
                             .font(.footnote).foregroundStyle(.secondary)
+                        // セットしていないときに勝手に音が鳴らないことを伝える。通知をオンにしていれば通知音だけは鳴る。
+                        Text(soundNote)
+                            .font(.footnote).foregroundStyle(.secondary)
                         Text("音量や集中モードなど端末の設定によって、聞こえ方や表示が変わることがあります。音の好みや起きやすさには個人差があり、特定の音の効果を保証するものではありません。")
                             .font(.footnote).foregroundStyle(.secondary)
                     }
                 }
                 Section {
-                    Text(usedObservedLatency ? "直近3件以上の入眠までの時間を参考にしました。時刻は自由に編集できます。" : "記録がまだ少ないため、初回設定の値を使いました。時刻は自由に編集できます。")
+                    Text("眠り始める目安時間は、この画面を開いた時刻を最初に表示しています。時刻は自由に編集できます。")
                         .font(.footnote).foregroundStyle(.secondary)
                     Text("予定どおりでなくても問題ありません。目標達成度は睡眠スコアとは別に扱います。")
                         .font(.footnote).foregroundStyle(.secondary)
@@ -97,7 +97,6 @@ struct TonightGoalView: View {
             }
             .navigationTitle("今夜の目標")
             .toolbar { Button("閉じる") { onSaved(); dismiss() } }
-            .onChange(of: bedTime) { _, _ in save() }
             .onChange(of: sleepTime) { _, _ in save() }
             .onChange(of: wakeTime) { _, _ in save() }
             .onChange(of: actionGoal) { _, _ in save() }
@@ -115,7 +114,8 @@ struct TonightGoalView: View {
     }
 
     private func save() {
-        let bed = localTime(bedTime)
+        // ベッドに入る時刻は入力欄をなくしたため、眠り始める目安時間と同じにする。
+        let bed = localTime(sleepTime)
         do {
             let existing = try repository.goals().first
             let active = existing.flatMap { Calendar.current.isDateInToday($0.createdAt) ? $0 : nil }
@@ -213,6 +213,16 @@ struct TonightGoalView: View {
         NemuAlarmService.cancel(preferences: preferences)
         scheduledAlarm = nil
         alarmEnabled = false
+    }
+
+    private var soundNote: String {
+        let windDown = settings.notificationPreference.isEnabledInApp
+        switch (windDown, morningNotificationEnabled) {
+        case (true, true): return String(localized: "セットしない限りアラーム音は鳴りません。通知をオンにしているため、寝る前と朝の通知音は鳴ります。")
+        case (true, false): return String(localized: "セットしない限りアラーム音は鳴りません。休む準備の通知をオンにしているため、寝る前の通知音は鳴ります。")
+        case (false, true): return String(localized: "セットしない限りアラーム音は鳴りません。朝の記録通知をオンにしているため、朝の通知音は鳴ります。")
+        case (false, false): return String(localized: "セットしない限り、アプリから音が鳴ることはありません。")
+        }
     }
 
     private static func dayLabel(_ date: Date) -> String {

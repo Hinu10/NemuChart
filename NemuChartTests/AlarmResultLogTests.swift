@@ -82,7 +82,8 @@ final class AlarmResultLogTests: XCTestCase {
     }
 
     func testVoiceSoundsHaveSpeechAndOthersDoNot() {
-        XCTAssertEqual(AlarmSoundChoice.voiceMorning.speechText, "朝です。起きなさい！")
+        XCTAssertEqual(AlarmSoundChoice.voiceMorning.speechText, "朝です。おきなさい！")
+        XCTAssertEqual(AlarmSoundChoice.voiceCountdown.speechParts?.count, 5)
         XCTAssertNotNil(AlarmSoundChoice.voiceCountdown.speechText)
         XCTAssertNil(AlarmSoundChoice.siren.speechText)
     }

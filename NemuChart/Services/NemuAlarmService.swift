@@ -222,8 +222,8 @@ enum NemuAlarmService {
             let url = directory.appendingPathComponent(name)
             if !FileManager.default.fileExists(atPath: url.path) {
                 var speech: [Float] = []
-                if let text = sound.speechText {
-                    speech = try await AlarmSpeechRenderer().render(text)
+                if let parts = sound.speechParts {
+                    speech = try await AlarmSpeechRenderer().render(parts)
                 }
                 try AlarmSoundSynthesizer.alarmWAV(sound, speech: speech).write(to: url, options: .atomic)
             }
@@ -234,5 +234,5 @@ enum NemuAlarmService {
     }
 
     /// 音の作り方を変えたら上げる。古いファイルを使い回さないため。
-    private static let soundFileVersion = 3
+    private static let soundFileVersion = 4
 }

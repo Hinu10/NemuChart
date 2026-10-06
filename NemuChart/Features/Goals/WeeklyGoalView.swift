@@ -136,7 +136,7 @@ struct WeeklyGoalView: View {
     }
     private var additional: [WeeklyGoalKind] {
         [.sevenHours, .avoidShortSleep, .freshness60, .freshness80, .avoidCaffeine,
-         .avoidAlcohol, .limitNap, .endSmartphone, .noteStress, .meetBedtime, .custom]
+         .avoidAlcohol, .limitNap, .noteStress, .meetBedtime, .custom]
     }
 }
 

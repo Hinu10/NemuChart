@@ -31,6 +31,7 @@ struct SleepRecordDraft {
     var napMinutes: Int?
     var consumedAlcohol: Bool?
     var consumedCaffeine: Bool?
+    /// 入力欄はなくしたが、以前の記録を編集して保存しても値が消えないよう引き継ぐ。
     var smartphoneEndTime: Date?
     var stress: Rating?
     var comfort: Rating?
@@ -69,6 +70,20 @@ struct SleepRecordDraft {
         reportedBreathingPause = record.factors.reportedBreathingPause
         id = record.id
         createdAt = record.createdAt
+    }
+
+    /// アラームの「起きた！」から開いたとき、その夜に分かった時刻で上書きする。
+    /// 寝た時刻は「今から寝る」を押した時刻、起きた時刻は「起きた！」を押した時刻。保存前に記録画面で直せる。
+    mutating func applyAlarmNight(wake: Date, wentToBed: Date?, snoozeCount: Int?) {
+        wakeTime = wake
+        recordDate = wake
+        if let wentToBed {
+            bedClock = wentToBed
+            sleepClock = wentToBed
+            sleepStartInputMode = .clockTime
+            manuallyAdjustDates = false
+        }
+        if let snoozeCount { self.snoozeCount = snoozeCount }
     }
 
     func makeRecord(

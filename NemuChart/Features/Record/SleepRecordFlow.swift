@@ -160,17 +160,6 @@ struct SleepRecordFlow: View {
                     OptionalIntPicker(title: "昨日の昼寝", value: $draft.napMinutes, values: [0, 10, 20, 30, 45, 60, 90, 120], unit: "分")
                     OptionalBoolPicker(title: "飲酒", value: $draft.consumedAlcohol, trueLabel: "あり", falseLabel: "なし")
                     OptionalBoolPicker(title: "カフェイン", value: $draft.consumedCaffeine, trueLabel: "摂取した", falseLabel: "摂取していない")
-                    if let smartphoneEndTime = draft.smartphoneEndTime {
-                        DatePicker("スマートフォン終了日時", selection: Binding(
-                            get: { smartphoneEndTime },
-                            set: { draft.smartphoneEndTime = $0 }
-                        ))
-                        .accessibilityIdentifier("smartphoneEndDateTimePicker")
-                        Button("スマートフォン終了日時を未入力に戻す") { draft.smartphoneEndTime = nil }
-                    } else {
-                        Button("スマートフォン終了日時を入力") { draft.smartphoneEndTime = draft.sleepClock }
-                            .accessibilityIdentifier("smartphoneEndTimeEntryButton")
-                    }
                     OptionalRatingPicker(title: "ストレス", value: $draft.stress)
                     OptionalRatingPicker(title: "快適さ", value: $draft.comfort)
                     OptionalBoolPicker(title: "いびきの指摘", value: $draft.reportedSnoring, trueLabel: "指摘あり", falseLabel: "なし")

@@ -27,14 +27,21 @@ enum AlarmSoundChoice: String, Codable, CaseIterable, Sendable {
         }
     }
 
-    /// 端末の読み上げ音声で作る台詞。nil は合成音だけの音源。
-    var speechText: String? {
+    /// 端末の読み上げ音声で作る台詞を区切りごとに分けたもの。nil は合成音だけの音源。
+    /// 1つにまとめて読ませると抑揚や間がずれるため、区切りごとに読ませて後ろに pause 秒の無音を入れる。
+    /// 「起きなさい」は漢字だと抑揚が崩れるため、ひらがなで読ませる。
+    var speechParts: [(text: String, pause: Double)]? {
         switch self {
-        case .voiceMorning: String(localized: "朝です。起きなさい！")
-        case .voiceCountdown: String(localized: "起床まで、さん、に、いち。起きろ！")
+        case .voiceMorning: [(String(localized: "朝です。"), 0.35), (String(localized: "おきなさい！"), 0)]
+        case .voiceCountdown: [
+            (String(localized: "起床まで"), 0.5), (String(localized: "さん"), 0.7), (String(localized: "に"), 0.7),
+            (String(localized: "いち"), 0.6), (String(localized: "起きろ！"), 0)
+        ]
         default: nil
         }
     }
+
+    var speechText: String? { speechParts?.map(\.text).joined() }
 }
 
 enum AlarmDeliveryMode: String, Codable, Sendable {
@@ -71,14 +78,12 @@ enum LifestyleFactorKind: String, CaseIterable, Sendable {
     case alcohol
     case caffeine
     case nap
-    case smartphone
 
     var displayName: String {
         switch self {
         case .alcohol: String(localized: "飲酒")
         case .caffeine: String(localized: "カフェイン")
         case .nap: String(localized: "昼寝")
-        case .smartphone: String(localized: "就寝30分前までにスマホを終了")
         }
     }
 }
