@@ -493,7 +493,6 @@ struct HomeView: View {
     }
 
     private var automaticEffect: SheepCollectible? {
-        guard scores.first?.total ?? 0 >= 90 else { return nil }
         let unlocked = SheepCollectible.all.filter {
             $0.category == .effect && preferenceData.unlockedContentIDs.contains($0.id)
         }

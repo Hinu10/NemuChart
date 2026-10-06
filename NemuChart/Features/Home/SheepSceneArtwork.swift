@@ -106,24 +106,26 @@ struct SheepSceneArtwork: View {
                 }
 
                 if effectID == "moonlight" {
-                    LinearGradient(colors: [.clear, Color(red: 0.84, green: 0.90, blue: 1).opacity(0.42), .clear], startPoint: .top, endPoint: .bottom)
-                        .frame(width: width * 0.30, height: height * 0.74)
+                    LinearGradient(colors: [.clear, Color(red: 0.84, green: 0.90, blue: 1).opacity(0.7), .clear], startPoint: .top, endPoint: .bottom)
+                        .frame(width: width * 0.42, height: height * 0.9)
                         .rotationEffect(.degrees(-13))
-                        .position(x: width * 0.66, y: height * 0.57)
+                        .position(x: width * 0.62, y: height * 0.55)
                         .blendMode(.screen)
                 }
 
-                if effectID == "sparkle" || effectID == "flowers" || effectID == "moonlight" {
-                    ForEach(0..<8, id: \.self) { index in
-                        if effectID == "flowers" {
-                            flower(size: height * 0.045, color: index.isMultiple(of: 2) ? Color(red: 1, green: 0.85, blue: 0.85) : .white)
-                                .position(x: width * (0.12 + CGFloat((index * 31) % 78) / 100), y: height * (0.30 + CGFloat((index * 19) % 48) / 100))
-                        } else {
-                            SparkleShape()
-                                .fill(.white.opacity(index.isMultiple(of: 2) ? 0.92 : 0.64))
-                                .frame(width: height * 0.035, height: height * 0.035)
-                                .position(x: width * (0.12 + CGFloat((index * 31) % 78) / 100), y: height * (0.23 + CGFloat((index * 19) % 47) / 100))
-                        }
+                // 特別演出は小さなカードでも分かるよう、ひつじの後ろの光の輪と大きめの粒で見せる。
+                if let effectColors {
+                    RadialGradient(colors: [effectColors.glow.opacity(0.85), effectColors.glow.opacity(0)], center: .center, startRadius: 0, endRadius: height * 0.42)
+                        .frame(width: height * 0.84, height: height * 0.84)
+                        .position(x: width * 0.5, y: height * 0.58)
+                        .blendMode(.screen)
+
+                    ForEach(0..<12, id: \.self) { index in
+                        effectParticle(index: index, height: height, colors: effectColors)
+                            .position(
+                                x: width * (0.08 + CGFloat((index * 31) % 84) / 100),
+                                y: height * (0.14 + CGFloat((index * 19) % 62) / 100)
+                            )
                     }
                 }
 
@@ -156,6 +158,40 @@ struct SheepSceneArtwork: View {
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("ひつじの景色")
+    }
+
+    private var effectColors: (glow: Color, particle: Color, accent: Color)? {
+        switch effectID {
+        case "sparkle": (Color(red: 1, green: 0.88, blue: 0.48), Color(red: 1, green: 0.84, blue: 0.36), .white)
+        case "flowers": (Color(red: 1, green: 0.78, blue: 0.86), Color(red: 1, green: 0.62, blue: 0.74), .white)
+        case "moonlight": (Color(red: 0.80, green: 0.88, blue: 1), Color(red: 0.88, green: 0.93, blue: 1), Color(red: 1, green: 0.95, blue: 0.70))
+        default: nil
+        }
+    }
+
+    /// 演出の粒。動かせるときは粒ごとに少しずつ違う速さでまたたかせる。
+    private func effectParticle(index: Int, height: CGFloat, colors: (glow: Color, particle: Color, accent: Color)) -> some View {
+        let size = height * (index.isMultiple(of: 3) ? 0.10 : 0.065)
+        let color = index.isMultiple(of: 2) ? colors.particle : colors.accent
+        return Group {
+            if effectID == "flowers" {
+                flower(size: size, color: color)
+                    .rotationEffect(.degrees(Double(index) * 23))
+            } else {
+                SparkleShape()
+                    .fill(color)
+                    .frame(width: size, height: size)
+            }
+        }
+        .shadow(color: colors.glow, radius: size * 0.35)
+        .phaseAnimator(animate ? [false, true] : [true]) { content, isBright in
+            content
+                .scaleEffect(isBright ? 1 : 0.55)
+                .opacity(isBright ? 1 : 0.45)
+                .offset(y: effectID == "flowers" && isBright ? size * 0.4 : 0)
+        } animation: { _ in
+            .easeInOut(duration: 0.9 + Double(index % 4) * 0.35)
+        }
     }
 
     private func hillColor(back: Bool) -> LinearGradient {

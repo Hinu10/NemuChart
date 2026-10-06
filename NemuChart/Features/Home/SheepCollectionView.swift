@@ -7,6 +7,7 @@ struct SheepCollectionView: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var selectedPreviewID: String?
 
     private let ink = Color(red: 0.12, green: 0.18, blue: 0.27)
@@ -92,7 +93,8 @@ struct SheepCollectionView: View {
                 sheepAssetName: sheepAssetName,
                 backgroundID: previewID(for: .background),
                 effectID: previewID(for: .effect),
-                accessoryIDs: previewDecorationIDs
+                accessoryIDs: previewDecorationIDs,
+                animate: !reduceMotion && ProcessInfo.processInfo.environment["NEMUCHART_UI_TESTING"] != "1"
             )
             .frame(height: 205)
             .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
