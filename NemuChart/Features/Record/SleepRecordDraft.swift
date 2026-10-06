@@ -46,7 +46,6 @@ struct SleepRecordDraft {
         recordDate = now
         bedClock = calendar.date(byAdding: .hour, value: -8, to: now) ?? now
         sleepClock = calendar.date(byAdding: .hour, value: -7, to: now) ?? now
-        smartphoneEndTime = sleepClock
     }
 
     init(record: SleepRecord) {
@@ -63,7 +62,7 @@ struct SleepRecordDraft {
         napMinutes = record.factors.napMinutes
         consumedAlcohol = record.factors.consumedAlcohol
         consumedCaffeine = record.factors.consumedCaffeine
-        smartphoneEndTime = record.factors.smartphoneEndTime ?? record.sleepStart
+        smartphoneEndTime = record.factors.smartphoneEndTime
         stress = record.factors.stress
         comfort = record.factors.comfort
         reportedSnoring = record.factors.reportedSnoring
@@ -122,18 +121,18 @@ struct SleepRecordDraft {
         }
         let factors = try SleepFactors(
             isAllNighter: false,
-            awakeningCount: awakeningCount ?? 0,
-            snoozeCount: snoozeCount ?? 0,
-            secondSleepMinutes: secondSleepMinutes ?? 0,
-            napMinutes: napMinutes ?? 0,
-            consumedAlcohol: consumedAlcohol ?? false,
-            consumedCaffeine: consumedCaffeine ?? false,
+            awakeningCount: awakeningCount,
+            snoozeCount: snoozeCount,
+            secondSleepMinutes: secondSleepMinutes,
+            napMinutes: napMinutes,
+            consumedAlcohol: consumedAlcohol,
+            consumedCaffeine: consumedCaffeine,
             smartphoneEndTime: normalizedSmartphoneEndTime,
-            stress: stress ?? .medium,
-            comfort: comfort ?? .medium,
+            stress: stress,
+            comfort: comfort,
             freshnessRate: freshnessRate,
-            reportedSnoring: reportedSnoring ?? false,
-            reportedBreathingPause: reportedBreathingPause ?? false
+            reportedSnoring: reportedSnoring,
+            reportedBreathingPause: reportedBreathingPause
         )
         return try SleepRecord(
             id: id,

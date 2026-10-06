@@ -96,13 +96,14 @@ struct WeeklyAnalysisService: Sendable {
     private func completeness(of records: [SleepRecord]) -> Double {
         guard !records.isEmpty else { return 0 }
         let count = records.reduce(0) { result, record in
+            // 二度寝時間は入力欄がないため数えない。
             let factors: [Any?] = [record.factors.awakeningCount, record.factors.snoozeCount,
-                record.factors.secondSleepMinutes, record.factors.napMinutes, record.factors.consumedAlcohol,
+                record.factors.napMinutes, record.factors.consumedAlcohol,
                 record.factors.consumedCaffeine, record.factors.smartphoneEndTime, record.factors.stress, record.factors.comfort,
                 record.factors.reportedSnoring, record.factors.reportedBreathingPause]
             return result + factors.compactMap { $0 }.count
         }
-        return Double(count) / Double(records.count * 11)
+        return Double(count) / Double(records.count * 10)
     }
 
     private func variation(of dates: [Date], timeZoneIdentifier: String, treatsEarlyMorningAsNextDay: Bool) -> Double? {
