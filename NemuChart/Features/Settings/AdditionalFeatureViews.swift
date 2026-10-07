@@ -26,7 +26,7 @@ struct LifestyleInsightsView: View {
                 }
             }
             Section("読み方") {
-                Text("入力済み記録内の相関の可能性です。未入力は除外し、生活リズムや体調など別の要因による偏りは補正していません。因果関係は示しません。")
+                Text("記録内の相関の可能性です。生活リズムや体調など別の要因による偏りは補正していません。因果関係は示しません。")
                     .font(.footnote).foregroundStyle(.secondary)
             }
         }
@@ -174,7 +174,7 @@ struct DataExportView: View {
     var body: some View {
         List {
             Section("書き出す内容") {
-                Text("睡眠日、タイムゾーン、就床・入眠・起床時刻、スッキリ度（0〜100）、任意の生活要因、作成・更新日時を含む\(count)件です。CSVとJSONは同じ項目・同じ名前で、日時は記録した地域の時刻です。未入力はCSVでは空欄、JSONでは null になり、false / 0 とは区別されます。")
+                Text("睡眠日、タイムゾーン、就床・入眠・起床時刻、スッキリ度（0〜100）、生活要因、作成・更新日時を含む\(count)件です。CSVとJSONは同じ項目・同じ名前で、日時は記録した地域の時刻です。")
                     .font(.footnote)
             }
             Section("形式") {

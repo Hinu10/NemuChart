@@ -153,19 +153,16 @@ struct SleepRecordFlow: View {
                     }
                 }
 
-                Section("任意の睡眠詳細・生活要因") {
-                    OptionalIntPicker(title: "中途覚醒", value: $draft.awakeningCount, range: 0...10, unit: "回")
-                    OptionalIntPicker(title: "スヌーズ", value: $draft.snoozeCount, range: 0...10, unit: "回")
-                    OptionalIntPicker(title: "昨日の昼寝", value: $draft.napMinutes, values: [0, 10, 20, 30, 45, 60, 90, 120], unit: "分")
-                    OptionalBoolPicker(title: "飲酒", value: $draft.consumedAlcohol, trueLabel: "あり", falseLabel: "なし")
-                    OptionalBoolPicker(title: "カフェイン", value: $draft.consumedCaffeine, trueLabel: "摂取した", falseLabel: "摂取していない")
-                    OptionalRatingPicker(title: "ストレス", value: $draft.stress)
-                    OptionalRatingPicker(title: "快適さ", value: $draft.comfort)
-                    OptionalBoolPicker(title: "いびきの指摘", value: $draft.reportedSnoring, trueLabel: "指摘あり", falseLabel: "なし")
-                    OptionalBoolPicker(title: "呼吸が止まったとの指摘", value: $draft.reportedBreathingPause, trueLabel: "指摘あり", falseLabel: "なし")
-                    Text("選ばなかった項目は「未入力」として保存され、「なし」や0回とは区別されます。分析では未入力の日を除いて比較します。")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+                Section("睡眠詳細・生活要因") {
+                    FactorIntPicker(title: "中途覚醒", value: $draft.awakeningCount, range: 0...10, unit: "回")
+                    FactorIntPicker(title: "スヌーズ", value: $draft.snoozeCount, range: 0...10, unit: "回")
+                    FactorIntPicker(title: "昨日の昼寝", value: $draft.napMinutes, values: [0, 10, 20, 30, 45, 60, 90, 120], unit: "分")
+                    FactorBoolPicker(title: "飲酒", value: $draft.consumedAlcohol, trueLabel: "あり", falseLabel: "なし")
+                    FactorBoolPicker(title: "カフェイン", value: $draft.consumedCaffeine, trueLabel: "摂取した", falseLabel: "摂取していない")
+                    FactorRatingPicker(title: "ストレス", value: $draft.stress)
+                    FactorRatingPicker(title: "快適さ", value: $draft.comfort)
+                    FactorBoolPicker(title: "いびきの指摘", value: $draft.reportedSnoring, trueLabel: "指摘あり", falseLabel: "なし")
+                    FactorBoolPicker(title: "呼吸が止まったとの指摘", value: $draft.reportedBreathingPause, trueLabel: "指摘あり", falseLabel: "なし")
                 }
             }
 
@@ -301,48 +298,48 @@ private enum Phase {
     }
 }
 
-private struct OptionalIntPicker: View {
+private struct FactorIntPicker: View {
     let title: String
-    @Binding var value: Int?
+    @Binding var value: Int
     let values: [Int]
     let unit: String
 
-    init(title: String, value: Binding<Int?>, range: ClosedRange<Int>, unit: String) {
+    init(title: String, value: Binding<Int>, range: ClosedRange<Int>, unit: String) {
         self.title = title; _value = value; values = Array(range); self.unit = unit
     }
-    init(title: String, value: Binding<Int?>, values: [Int], unit: String) {
+    init(title: String, value: Binding<Int>, values: [Int], unit: String) {
         self.title = title; _value = value; self.values = values; self.unit = unit
     }
 
     var body: some View {
         Picker(title, selection: $value) {
-            Text("未入力").tag(Int?.none)
-            ForEach(values, id: \.self) { Text("\($0)\(unit)").tag(Int?.some($0)) }
+            // 以前の記録に候補外の値が入っていても表示できるようにする。
+            ForEach(values.contains(value) ? values : (values + [value]).sorted(), id: \.self) {
+                Text("\($0)\(unit)").tag($0)
+            }
         }
     }
 }
 
-private struct OptionalBoolPicker: View {
+private struct FactorBoolPicker: View {
     let title: String
-    @Binding var value: Bool?
+    @Binding var value: Bool
     let trueLabel: String
     let falseLabel: String
     var body: some View {
         Picker(title, selection: $value) {
-            Text("未入力").tag(Bool?.none)
-            Text(falseLabel).tag(Bool?.some(false))
-            Text(trueLabel).tag(Bool?.some(true))
+            Text(falseLabel).tag(false)
+            Text(trueLabel).tag(true)
         }
     }
 }
 
-private struct OptionalRatingPicker: View {
+private struct FactorRatingPicker: View {
     let title: String
-    @Binding var value: Rating?
+    @Binding var value: Rating
     var body: some View {
         Picker(title, selection: $value) {
-            Text("未入力").tag(Rating?.none)
-            ForEach(Rating.allCases, id: \.self) { Text($0.displayName).tag(Rating?.some($0)) }
+            ForEach(Rating.allCases, id: \.self) { Text($0.displayName).tag($0) }
         }
     }
 }

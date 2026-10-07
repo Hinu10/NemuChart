@@ -72,7 +72,7 @@ final class MVPFeaturesTests: XCTestCase {
         XCTAssertEqual(record.factors.snoozeCount, 2)
     }
 
-    func testDraftKeepsUntouchedOptionalFieldsUnset() throws {
+    func testDraftDefaultsUntouchedFactorsToNone() throws {
         var draft = SleepRecordDraft(now: TestFixtures.date(2026, 7, 14, 7, 0))
         draft.wakeTime = TestFixtures.date(2026, 7, 14, 7, 0)
         draft.sleepClock = TestFixtures.date(2026, 7, 14, 23, 30)
@@ -82,16 +82,16 @@ final class MVPFeaturesTests: XCTestCase {
             timeZone: TestFixtures.tokyo
         )
 
-        XCTAssertNil(record.factors.awakeningCount)
-        XCTAssertNil(record.factors.snoozeCount)
+        XCTAssertEqual(record.factors.awakeningCount, 0)
+        XCTAssertEqual(record.factors.snoozeCount, 0)
         XCTAssertNil(record.factors.secondSleepMinutes)
-        XCTAssertNil(record.factors.napMinutes)
-        XCTAssertNil(record.factors.consumedAlcohol)
-        XCTAssertNil(record.factors.consumedCaffeine)
-        XCTAssertNil(record.factors.stress)
-        XCTAssertNil(record.factors.comfort)
-        XCTAssertNil(record.factors.reportedSnoring)
-        XCTAssertNil(record.factors.reportedBreathingPause)
+        XCTAssertEqual(record.factors.napMinutes, 0)
+        XCTAssertEqual(record.factors.consumedAlcohol, false)
+        XCTAssertEqual(record.factors.consumedCaffeine, false)
+        XCTAssertEqual(record.factors.stress, .medium)
+        XCTAssertEqual(record.factors.comfort, .medium)
+        XCTAssertEqual(record.factors.reportedSnoring, false)
+        XCTAssertEqual(record.factors.reportedBreathingPause, false)
     }
 
     func testDraftNormalizesSmartphoneClockToPreviousNight() throws {

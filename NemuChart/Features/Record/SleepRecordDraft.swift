@@ -25,18 +25,18 @@ struct SleepRecordDraft {
     var latencyMinutes = 20
     var freshness: Freshness = .neutral
     var freshnessRate = 50
-    var awakeningCount: Int?
-    var snoozeCount: Int?
+    var awakeningCount = 0
+    var snoozeCount = 0
     var secondSleepMinutes: Int?
-    var napMinutes: Int?
-    var consumedAlcohol: Bool?
-    var consumedCaffeine: Bool?
+    var napMinutes = 0
+    var consumedAlcohol = false
+    var consumedCaffeine = false
     /// 入力欄はなくしたが、以前の記録を編集して保存しても値が消えないよう引き継ぐ。
     var smartphoneEndTime: Date?
-    var stress: Rating?
-    var comfort: Rating?
-    var reportedSnoring: Bool?
-    var reportedBreathingPause: Bool?
+    var stress: Rating = .medium
+    var comfort: Rating = .medium
+    var reportedSnoring = false
+    var reportedBreathingPause = false
     var id = UUID()
     var createdAt = Date()
 
@@ -57,17 +57,17 @@ struct SleepRecordDraft {
         sleepClock = record.sleepStart
         freshness = record.freshness
         freshnessRate = record.freshnessValue
-        awakeningCount = record.factors.awakeningCount
-        snoozeCount = record.factors.snoozeCount
+        awakeningCount = record.factors.awakeningCount ?? 0
+        snoozeCount = record.factors.snoozeCount ?? 0
         secondSleepMinutes = record.factors.secondSleepMinutes
-        napMinutes = record.factors.napMinutes
-        consumedAlcohol = record.factors.consumedAlcohol
-        consumedCaffeine = record.factors.consumedCaffeine
+        napMinutes = record.factors.napMinutes ?? 0
+        consumedAlcohol = record.factors.consumedAlcohol ?? false
+        consumedCaffeine = record.factors.consumedCaffeine ?? false
         smartphoneEndTime = record.factors.smartphoneEndTime
-        stress = record.factors.stress
-        comfort = record.factors.comfort
-        reportedSnoring = record.factors.reportedSnoring
-        reportedBreathingPause = record.factors.reportedBreathingPause
+        stress = record.factors.stress ?? .medium
+        comfort = record.factors.comfort ?? .medium
+        reportedSnoring = record.factors.reportedSnoring ?? false
+        reportedBreathingPause = record.factors.reportedBreathingPause ?? false
         id = record.id
         createdAt = record.createdAt
     }
